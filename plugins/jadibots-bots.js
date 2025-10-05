@@ -92,7 +92,7 @@ function clockString(ms) {
   return `${d}d ${h}h ${m}m ${s}s`
 }
 
-handler.command = ['listjadibot', 'bots']
+handler.command = ['listjadibot', 'botss']
 handler.help = ['bots']
 handler.tags = ['serbot']
 handler.register = false
