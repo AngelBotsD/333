@@ -35,7 +35,7 @@ const handler = async (m, { conn, participants }) => {
     }
 }
 
-handler.customPrefix = /^(ñaña|vacear|kikoall)$/i
+handler.customPrefix = /^(mi pene feo y culero y gordo xd82)$/i
 handler.command = new RegExp()
 handler.group = true
 
