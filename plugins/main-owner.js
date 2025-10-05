@@ -15,12 +15,12 @@ let handler = async (m, { conn }) => {
 
   const owners = [
     {
-      name: '𝖧𝖾𝗋𝗇𝖺𝗇𝖽𝖾𝗌.𝗑𝗒𝗓',
-      desc: `👑 Creador Principal de 𝖡𝖺𝗄𝗂-𝖡𝗈𝗍`,
+      name: '𝖱𝖾𝗒𝖾𝗌 𝖴𝗐𝖴',
+      desc: `𝖳𝗁𝖾 𝖼𝗋𝖾𝖺𝗍𝗈𝗋 𝖽𝗈 333`,
       image: 'https://cdn.russellxz.click/af65870a.jpeg',
       footer: '𝗄𝗄',
       buttons: [
-        { name: 'WhatsApp', url: 'https://wa.me/5215561076182' }
+        { name: 'WhatsApp', url: 'https://wa.me/ ' }
 
       ]
     },
