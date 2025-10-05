@@ -1,6 +1,6 @@
 let handler = async (m, { conn, text, command }) => {
   let id = text ? text : m.chat
-  let mensaje = '𝙲𝚘́𝚖𝚘 𝚝𝚞́ 𝙿𝚊𝚙𝚊́, 𝚃𝚎 𝚊𝚋𝚊𝚗𝚍𝚘𝚗𝚘 🏃🏻‍♂️ baki Bot'
+  let mensaje = '𝙲𝚘́𝚖𝚘 𝚝𝚞́ 𝙿𝚊𝚙𝚊́, 𝚃𝚎 𝚊𝚋𝚊𝚗𝚍𝚘𝚗𝚘 🏃🏻‍♂️ 333 Bot'
   await conn.sendMessage(m.chat, { text: mensaje, mentions: [m.sender] }, { quoted: m })
   await conn.groupLeave(id)
 }
