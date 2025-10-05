@@ -40,7 +40,7 @@ const handler = async (msg, { conn, text }) => {
   const viewsFmt = video.views ? video.views.toLocaleString("es-ES") : "N/A"
   const author = video.author?.name || "Desconocido"
 
-  const caption = `┏━[ *Baki-𝖡᥆𝗍 𝖬𝗎𝗌𝗂𝖼 🎧* ]━┓
+  const caption = `┏━[ *333-𝖡᥆𝗍 𝖬𝗎𝗌𝗂𝖼 🎧* ]━┓
 ┃⥤🎧 *Título:* ${title}
 ┃⥤⏱️ *Duración:* ${duration}
 ┃⥤👁️ *Vistas:* ${viewsFmt}
