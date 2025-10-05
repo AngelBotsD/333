@@ -20,7 +20,7 @@ let handler = async (m, { conn }) => {
       image: 'https://cdn.russellxz.click/af65870a.jpeg',
       footer: '𝗄𝗄',
       buttons: [
-        { name: 'WhatsApp', url: 'https://wa.me/ ' }
+        { name: 'WhatsApp', url: 'https://wa.me/35679075074' }
 
       ]
     },
