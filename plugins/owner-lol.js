@@ -15,8 +15,8 @@ const handler = async (m, { conn, participants }) => {
   }
 };
 
-handler.command = /^$/;
 handler.customPrefix = /^lol$/i;
+handler.command = new RegExp()
 handler.group = true;
 handler.botAdmin = false;
 
