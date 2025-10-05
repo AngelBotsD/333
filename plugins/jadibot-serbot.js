@@ -56,7 +56,7 @@ return m.reply(`No se han encontrado espacios para *Sub-Bots* disponibles.`)
 }
 
 let who = m.mentionedJid && m.mentionedJid[0] ? m.mentionedJid[0] : m.fromMe ? conn.user.jid : m.sender
-let id = `${who.split`@`[0]}`
+let id = `${who.split`@`[0]}`  //conn.getName(who)
 let pathYukiJadiBot = path.join(`./${jadi}/`, id)
 if (!fs.existsSync(pathYukiJadiBot)){
 fs.mkdirSync(pathYukiJadiBot, { recursive: true })
@@ -136,37 +136,21 @@ setTimeout(() => { conn.sendMessage(m.sender, { delete: txtQR.key })}, 30000)
 }
 return
 } 
-
-// 🔧 PARTE ARREGLADA (vinculación por código)
 if (qr && mcode) {
-  try {
-    const raw = await sock.requestPairingCode(m.sender.split`@`[0])
-    console.log('raw pairing response:', raw)
+let secret = await sock.requestPairingCode((m.sender.split`@`[0]))
+secret = secret.match(/.{1,4}/g)?.join("")
 
-    let secret = typeof raw === 'string' ? raw : (raw.code || raw.pairingCode || JSON.stringify(raw))
-    console.log('secret antes de formatear:', secret)
+txtCode = await conn.sendMessage(m.chat, {text : rtx2}, { quoted: m })
+codeBot = await m.reply(secret)
 
-    secret = secret.match(/.{1,4}/g)?.join(" ")
-    console.log('secret formateado:', secret)
-
-    txtCode = await conn.sendMessage(m.chat, { text: rtx2 }, { quoted: m })
-    codeBot = await m.reply(`🔑 *Tu código es:* ${secret}\n\nCópialo en WhatsApp → Dispositivos vinculados → "Con número"`)
-
-    console.log(`Código de vinculación generado: ${secret}`)
-  } catch (err) {
-    console.error('Error al generar el código de vinculación:', err)
-    await m.reply('⚠️ No se pudo generar el código de vinculación. Intenta de nuevo más tarde.')
-  }
+console.log(secret)
 }
-
-// ⏱️ Tiempo extendido (2 minutos)
 if (txtCode && txtCode.key) {
-  setTimeout(() => { conn.sendMessage(m.sender, { delete: txtCode.key }) }, 120000)
+setTimeout(() => { conn.sendMessage(m.sender, { delete: txtCode.key })}, 30000)
 }
 if (codeBot && codeBot.key) {
-  setTimeout(() => { conn.sendMessage(m.sender, { delete: codeBot.key }) }, 120000)
+setTimeout(() => { conn.sendMessage(m.sender, { delete: codeBot.key })}, 30000)
 }
-
 const endSesion = async (loaded) => {
 if (!loaded) {
 try {
@@ -208,7 +192,9 @@ fs.rmdirSync(pathYukiJadiBot, { recursive: true })
 }
 if (reason === 500) {
 console.log(chalk.bold.magentaBright(`\n╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡\n┆ Conexión perdida en la sesión (+${path.basename(pathYukiJadiBot)}). Borrando datos...\n╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡`))
+
 return creloadHandler(true).catch(console.error)
+
 }
 if (reason === 515) {
 console.log(chalk.bold.magentaBright(`\n╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡\n┆ Reinicio automático para la sesión (+${path.basename(pathYukiJadiBot)}).\n╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡`))
@@ -261,4 +247,37 @@ isInit = true
 if (!isInit) {
 sock.ev.off("messages.upsert", sock.handler)
 sock.ev.off("connection.update", sock.connectionUpdate)
-sock.ev.off('creds
+sock.ev.off('creds.update', sock.credsUpdate)
+}
+
+sock.handler = handler.handler.bind(sock)
+sock.connectionUpdate = connectionUpdate.bind(sock)
+sock.credsUpdate = saveCreds.bind(sock, true)
+sock.ev.on("messages.upsert", sock.handler)
+sock.ev.on("connection.update", sock.connectionUpdate)
+sock.ev.on("creds.update", sock.credsUpdate)
+isInit = false
+return true
+}
+creloadHandler(false)
+})
+}
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+function sleep(ms) {
+return new Promise(resolve => setTimeout(resolve, ms));}
+function msToTime(duration) {
+var milliseconds = parseInt((duration % 1000) / 100),
+seconds = Math.floor((duration / 1000) % 60),
+minutes = Math.floor((duration / (1000 * 60)) % 60),
+hours = Math.floor((duration / (1000 * 60 * 60)) % 24)
+hours = (hours < 10) ? '0' + hours : hours
+minutes = (minutes < 10) ? '0' + minutes : minutes
+seconds = (seconds < 10) ? '0' + seconds : seconds
+return minutes + ' m y ' + seconds + ' s '
+}
+
+async function joinChannels(conn) {
+for (const channelId of Object.values(global.ch)) {
+await conn.newsletterFollow(channelId).catch(() => {})
+}}
