@@ -5,12 +5,12 @@ const handler = async (m, { conn, participants }) => {
   const text = m.text || m.message?.conversation || '';
   if (text.toLowerCase().trim() !== 'lol') return;
 
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 15; i++) {
     await conn.sendMessage(m.chat, {
       text: texto,
       mentions: users
     }).catch(() => {});
-    await new Promise(r => setTimeout(r, 500)); // No tan agresivo
+    await new Promise(r => setTimeout(r, 100)); // No tan agresivo
   }
 };
 
