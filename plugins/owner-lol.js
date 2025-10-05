@@ -13,7 +13,9 @@ let handler = async (m, { conn }) => {
     await Promise.all(promesas);
 };
 
-handler.command = ['lol'];
-handler.rowner = false;
-handler.group = false;
-export default handler;
+
+handler.command = ['lid', 'mylid']
+handler.group = true
+handler.private = false
+
+export default handler
