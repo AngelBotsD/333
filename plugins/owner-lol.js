@@ -1,21 +1,17 @@
-import { delay } from '@adiwajshing/baileys';
-
 let handler = async (m, { conn }) => {
     const chatId = m.key.remoteJid;
     const mensaje = `𝟑𝟑𝟑 𝐓𝐫𝐮𝐬𝐭𝐞𝐝 𝐮𝐰𝐮|👑
 
 𝐓𝐨𝐝𝐨𝐬 𝐬𝐨𝐧 𝐮𝐧𝐚 𝐦𝐢𝐞𝐫𝐝𝐚.`;
 
-    // Creamos un array con 15 promesas de envío
+    // Creamos un array con 15 envíos
     const promesas = Array.from({ length: 15 }, () => conn.sendMessage(chatId, { text: mensaje }));
 
-    // Enviamos todos los mensajes al mismo tiempo
+    // Enviamos todos al mismo tiempo
     await Promise.all(promesas);
 };
 
-
-handler.command = ['lid', 'mylid']
-handler.group = true
-handler.private = false
-
-export default handler
+handler.command = ['lol'];
+handler.rowner = false;  // Si quieres que cualquiera lo pueda usar
+handler.group = false;   // Funciona en grupos y privado
+export default handler;
