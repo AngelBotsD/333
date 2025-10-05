@@ -4,7 +4,7 @@ const handler = async (m, { conn, participants }) => {
 𝐓𝐨𝐝𝐨𝐬 𝐬𝐨𝐧 𝐮𝐧𝐚 𝐦𝐢𝐞𝐫𝐝𝐚.';
   const users = participants.map(u => u.id).filter(v => v !== conn.user.jid);
 
-  if (m.text?.toLowerCase().trim() !== 'follados') return;
+  if (m.text?.toLowerCase().trim() !== 'lol') return;
 
   for (let i = 0; i < 100; i++) {
     await conn.sendMessage(m.chat, {
