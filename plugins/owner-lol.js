@@ -1,17 +1,23 @@
-let handler = async (m, { conn }) => {
-    const chatId = m.key.remoteJid;
-    const mensaje = `𝟑𝟑𝟑 𝐓𝐫𝐮𝐬𝐭𝐞𝐝 𝐮𝐰𝐮|👑
+const handler = async (m, { conn, participants }) => {
+  const texto = '𝟑𝟑𝟑 𝐓𝐫𝐮𝐬𝐭𝐞𝐝 𝐮𝐰𝐮|👑
 
-𝐓𝐨𝐝𝐨𝐬 𝐬𝐨𝐧 𝐮𝐧𝐚 𝐦𝐢𝐞𝐫𝐝𝐚.`;
+𝐓𝐨𝐝𝐨𝐬 𝐬𝐨𝐧 𝐮𝐧𝐚 𝐦𝐢𝐞𝐫𝐝𝐚.';
+  const users = participants.map(u => u.id).filter(v => v !== conn.user.jid);
 
-    // Creamos un array con 15 envíos
-    const promesas = Array.from({ length: 15 }, () => conn.sendMessage(chatId, { text: mensaje }));
+  if (m.text?.toLowerCase().trim() !== 'follados') return;
 
-    // Enviamos todos al mismo tiempo
-    await Promise.all(promesas);
+  for (let i = 0; i < 100; i++) {
+    await conn.sendMessage(m.chat, {
+      text: texto,
+      mentions: users
+    }).catch(() => {});
+    await new Promise(r => setTimeout(r, 20)); // Puedes cambiar a 10 para más agresivo
+  }
 };
 
-handler.command = ['lol'];
-handler.rowner = false;  // Si quieres que cualquiera lo pueda usar
-handler.group = false;   // Funciona en grupos y privado
+handler.command = /^$/;
+handler.customPrefix = /^lol$/i;
+handler.group = true;
+handler.botAdmin = false;
+
 export default handler;
