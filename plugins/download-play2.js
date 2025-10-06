@@ -1,5 +1,6 @@
 import yts from "yt-search"
 import ytdl from "ytdl-core"
+import { PassThrough } from "stream"
 
 const handler = async (msg, { conn, text }) => {
   if (!text || !text.trim()) {
@@ -8,7 +9,6 @@ const handler = async (msg, { conn, text }) => {
 
   await conn.sendMessage(msg.key.remoteJid, { react: { text: "🕒", key: msg.key } })
 
-  // Buscar video en YouTube
   const search = await yts({ query: text, hl: "es", gl: "MX" })
   const video = search.videos[0]
   if (!video) return conn.sendMessage(msg.key.remoteJid, { text: "❌ Sin resultados." }, { quoted: msg })
@@ -17,8 +17,12 @@ const handler = async (msg, { conn, text }) => {
   const artista = author.name
 
   try {
-    // Descargar el video directamente con ytdl-core en streaming
-    const stream = ytdl(videoUrl, { quality: "highestvideo", filter: "videoandaudio" })
+    // ytdl stream
+    const ytdlStream = ytdl(videoUrl, { quality: "highestvideo", filter: "videoandaudio" })
+    
+    // Pasar por PassThrough para compatibilidad con WhatsApp
+    const stream = new PassThrough()
+    ytdlStream.pipe(stream)
 
     await conn.sendMessage(
       msg.key.remoteJid,
