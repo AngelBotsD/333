@@ -1,4 +1,3 @@
-// commands/play.js
 import axios from "axios";
 import yts from "yt-search";
 import fs from "fs";
@@ -42,7 +41,7 @@ async function callMyApi(url, format) {
   return r.data.data;
 }
 
-export default async (msg, { conn, text }) => {
+const handler = async (msg, { conn, text }) => {
   const pref = global.prefixes?.[0] || ".";
 
   if (!text || !text.trim()) {
@@ -167,6 +166,10 @@ export default async (msg, { conn, text }) => {
   }
 };
 
+// =======================
+// FUNCIONES DE DESCARGA
+// =======================
+
 async function handleDownload(conn, job, choice) {
   const mapping = {
     "👍": "audio",
@@ -187,7 +190,6 @@ async function downloadAudio(conn, job, asDocument, quoted) {
   const { chatId, videoUrl, title } = job;
   const data = await callMyApi(videoUrl, "audio");
   const mediaUrl = data.audio || data.video;
-
   if (!mediaUrl) throw new Error("No se pudo obtener audio");
 
   const tmp = path.join(process.cwd(), "tmp");
@@ -265,9 +267,11 @@ async function downloadVideo(conn, job, asDocument, quoted) {
   try { fs.unlinkSync(file); } catch {}
 }
 
-// 🔔 nombre del comando:
-handler.command = ["playpro", "fabricio"]
-handler.help = ["facebook <url>", "fb <url>"]
-handler.tags = ["descargas"]
+// =======================
+// METADATOS DEL HANDLER
+// =======================
+handler.command = ["playpro", "song"];
+handler.help = ["playpro <término>", "song <nombre>"];
+handler.tags = ["descargas"];
 
-export default handler
+export default handler;
