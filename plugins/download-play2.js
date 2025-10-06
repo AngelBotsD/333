@@ -7,6 +7,7 @@ import { pipeline } from "stream"
 
 const streamPipe = promisify(pipeline)
 const MAX_FILE_SIZE = 60 * 1024 * 1024
+const MAX_TIMEOUT = 15000 // 15 segundos por intento
 
 const handler = async (msg, { conn, text }) => {
   const chat = msg.key.remoteJid
@@ -34,23 +35,36 @@ const handler = async (msg, { conn, text }) => {
     let calidadElegida = "Desconocida"
     let apiUsada = "Desconocida"
 
+    // 🔹 Función para intentar API con reintentos silenciosos
     const tryApi = (apiName, urlBuilder) => {
       return new Promise(async (resolve, reject) => {
-        const controller = new AbortController()
-        try {
-          const apiUrl = urlBuilder()
-          const r = await axios.get(apiUrl, { timeout: 10000, signal: controller.signal })
-          if (r.data?.status && (r.data?.result?.url || r.data?.data?.url || r.data?.result?.dl_url)) {
-            // extraer URL y calidad según la API
-            const url = r.data?.result?.url || r.data?.data?.url || r.data?.result?.dl_url
-            const quality = r.data?.result?.quality || r.data?.data?.quality || "Desconocida"
-            resolve({ url, quality, api: apiName, controller })
-          } else {
-            reject(new Error(`${apiName}: No entregó URL válido`))
+        let intentos = 0
+        const maxIntentos = 2
+
+        const attempt = async () => {
+          intentos++
+          const controller = new AbortController()
+          try {
+            const apiUrl = urlBuilder()
+            const r = await axios.get(apiUrl, { timeout: MAX_TIMEOUT, signal: controller.signal })
+            if (r.data?.status && (r.data?.result?.url || r.data?.data?.url || r.data?.result?.dl_url)) {
+              const url = r.data?.result?.url || r.data?.data?.url || r.data?.result?.dl_url
+              const quality = r.data?.result?.quality || r.data?.data?.quality || "Desconocida"
+              resolve({ url, quality, api: apiName, controller })
+            } else {
+              throw new Error(`${apiName}: No entregó URL válido`)
+            }
+          } catch (err) {
+            if (intentos < maxIntentos) {
+              console.log(`${apiName} abortado, reintentando... (${intentos}/${maxIntentos})`)
+              await attempt() // reintento silencioso
+            } else {
+              reject(new Error(`${apiName}: ${err.message}`))
+            }
           }
-        } catch (err) {
-          reject(new Error(`${apiName}: ${err.message}`))
         }
+
+        attempt()
       })
     }
 
@@ -74,7 +88,7 @@ const handler = async (msg, { conn, text }) => {
       `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(videoUrl)}&type=video&quality=720p&apikey=GataDios`
     )
 
-    // 🔹 Promise.any -> gana la primera API que responda
+    // 🔹 Promise.any -> gana la primera API que responda correctamente
     let winner
     try {
       winner = await Promise.any([sylphyApi, adonixApi, mayApi, skyApi, fgmodsApi, neoxrApi])
