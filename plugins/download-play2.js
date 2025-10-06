@@ -6,8 +6,10 @@ import { promisify } from "util";
 import { pipeline } from "stream";
 
 const streamPipe = promisify(pipeline);
-const API_BASE = process.env.API_BASE || "https://api-sky.ultraplus.click";
-const API_KEY  = process.env.API_KEY  || "Russellxz";
+
+// ==== CONFIG DE TU API ====
+const API_BASE = "https://api-adonix.ultraplus.click";
+const API_KEY  = "AdonixKeyno3h1z7435";
 
 // ===== UTILIDADES =====
 async function downloadToFile(url, filePath) {
@@ -23,7 +25,7 @@ function fileSizeMB(filePath) {
 
 async function callMyApi(url, format) {
   const r = await axios.get(`${API_BASE}/api/download/yt.php`, {
-    params: { url, format },
+    params: { url, format }, // format: 'audio' | 'video'
     headers: { Authorization: `Bearer ${API_KEY}` },
     timeout: 60000
   });
@@ -60,7 +62,7 @@ const handler = async (msg, { conn, text }) => {
 ❥ 𝑽𝒊𝒔𝒕𝒂𝒔: ${viewsFmt}
 ❥ 𝑨𝒖𝒕𝒐𝒓: ${author?.name || author || "Desconocido"}
 ❥ 𝑳𝒊𝒏𝒌: ${videoUrl}
-❥ API: api-sky.ultraplus.click
+❥ API: api-adonix.ultraplus.click
 ❦𝑳𝑨 𝑺𝑼𝑲𝑰 𝑩𝑶𝑻❦
 `.trim();
 
@@ -86,7 +88,7 @@ const handler = async (msg, { conn, text }) => {
     video: fs.readFileSync(file),
     mimetype: "video/mp4",
     fileName: `${title}.mp4`,
-    caption: `🎬 𝐀𝐪𝐮𝐢́ 𝐭𝐢𝐞𝐧𝐞𝐬 𝐭𝐮 𝐯𝐢𝐝𝐞𝐨~ 💫\n• API: api-sky.ultraplus.click\n© 𝐋𝐚 𝐒𝐮𝐤𝐢 𝐁𝐨𝐭`
+    caption: `🎬 𝐀𝐪𝐮𝐢́ 𝐭𝐢𝐞𝐧𝐞𝐬 𝐭𝐮 𝐯𝐢𝐝𝐞𝐨~ 💫\n• API: api-adonix.ultraplus.click\n© 𝐋𝐚 𝐒𝐮𝐤𝐢 𝐁𝐨𝐭`
   }, { quoted: msg });
 
   try { fs.unlinkSync(file); } catch {}
