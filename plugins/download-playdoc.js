@@ -7,12 +7,10 @@ import { promisify } from "util";
 import { pipeline } from "stream";
 
 const streamPipe = promisify(pipeline);
-
-// ==== CONFIG DE TU API ====
 const API_BASE = process.env.API_BASE || "https://api-sky.ultraplus.click";
-const API_KEY  = process.env.API_KEY  || "Russellxz"; // <-- tu API Key
+const API_KEY  = process.env.API_KEY  || "Russellxz"; // <-- tu API key
 
-// ==== UTILIDADES ====
+// ========= UTILIDADES =========
 async function downloadToFile(url, filePath) {
   const res = await axios.get(url, { responseType: "stream" });
   await streamPipe(res.data, fs.createWriteStream(filePath));
@@ -36,10 +34,9 @@ async function callMyApi(url, format) {
   return r.data.data;
 }
 
-// ==== COMANDO PRINCIPAL ====
+// ========= COMANDO PRINCIPAL =========
 const handler = async (msg, { conn, text }) => {
   const pref = global.prefixes?.[0] || ".";
-
   if (!text || !text.trim()) {
     return conn.sendMessage(
       msg.key.remoteJid,
@@ -48,23 +45,22 @@ const handler = async (msg, { conn, text }) => {
     );
   }
 
-  // reacción de carga
   await conn.sendMessage(msg.key.remoteJid, {
     react: { text: "⏳", key: msg.key }
   });
 
-  // búsqueda
+  // Búsqueda
   const res = await yts(text);
   const video = res.videos?.[0];
   if (!video) {
     return conn.sendMessage(msg.key.remoteJid, { text: "❌ Sin resultados." }, { quoted: msg });
   }
 
-  const { url: videoUrl, title, author, timestamp: duration, views, thumbnail } = video;
+  const { url: videoUrl, title, author, timestamp: duration, thumbnail } = video;
 
-  // plantilla decorada ✨
+  // Mensaje con letras bonitas y símbolos ✨
   const caption = `
-> *𝙰𝚄𝙳𝙸𝙾 𝙳𝙾𝚆𝙽𝙻𝙾𝙰𝙳𝙴𝚁 (𝙳𝙾𝙲𝚄𝙼𝙴𝙽𝚃𝙾)*  
+> *𝙰𝚄𝙳𝙸𝙾 𝙳𝙾𝚆𝙽𝙻𝙾𝙰𝙳𝙴𝚁 (𝙳𝙾𝙲𝚄𝙼𝙴𝙽𝚃𝙾)*
 ⭒ ִֶָ७ ꯭🎵˙⋆｡ - *𝚃𝚒́𝚝𝚞𝚕𝚘:* ${title}
 ⭒ ִֶָ७ ꯭🎤˙⋆｡ - *𝙰𝚛𝚝𝚒𝚜𝚝𝚊:* ${author?.name || "Desconocido"}
 ⭒ ִֶָ७ ꯭🕑˙⋆｡ - *𝙳𝚞𝚛𝚊𝚌𝚒ó𝚗:* ${duration}
@@ -72,31 +68,25 @@ const handler = async (msg, { conn, text }) => {
 ⭒ ִֶָ७ ꯭🌐˙⋆｡ - *𝙰𝚙𝚒:* api-sky.ultraplus.click
 
 » *𝘌𝘕𝘝𝘐𝘈𝘕𝘋𝘖 𝘈𝘜𝘋𝘐𝘖 𝘌𝘕 𝘋𝘖𝘊𝘜𝘔𝘌𝘕𝘛𝘖* 🎧
-» *𝘈𝘎𝘜𝘈𝘙𝘋𝘌 𝘜𝘕 𝘗𝘖𝘊𝘖*...
 ⇆‌ ㅤ◁ㅤㅤ❚❚ㅤㅤ▷ㅤ↻
 > \`\`\`© 𝖯𝗈𝗐𝖾𝗋𝖾𝗱 𝖻𝗒 𝗁𝖾𝗋𝗇𝖺𝗇𝖽𝖾𝗓.𝗑𝗒𝗓\`\`\`
 `.trim();
 
-  // envía preview con info
   await conn.sendMessage(
     msg.key.remoteJid,
     { image: { url: thumbnail }, caption },
     { quoted: msg }
   );
 
-  // descarga y envía como documento
   await downloadAudioDoc(conn, msg, videoUrl, title);
-
-  // reacción final
   await conn.sendMessage(msg.key.remoteJid, {
     react: { text: "✅", key: msg.key }
   });
 };
 
-// ==== DESCARGA DE AUDIO COMO DOCUMENTO ====
+// ========= DESCARGA DE AUDIO COMO DOC =========
 async function downloadAudioDoc(conn, msg, videoUrl, title) {
   const chatId = msg.key.remoteJid;
-
   const data = await callMyApi(videoUrl, "audio");
   const mediaUrl = data.audio || data.video;
   if (!mediaUrl) throw new Error("No se pudo obtener audio");
@@ -134,7 +124,7 @@ async function downloadAudioDoc(conn, msg, videoUrl, title) {
   const sizeMB = fileSizeMB(outFile);
   if (sizeMB > 99) {
     try { fs.unlinkSync(outFile); } catch {}
-    await conn.sendMessage(chatId, { text: `❌ El archivo de audio pesa ${sizeMB.toFixed(2)}MB (>99MB).` }, { quoted: msg });
+    await conn.sendMessage(chatId, { text: `❌ El archivo pesa ${sizeMB.toFixed(2)}MB (>99MB).` }, { quoted: msg });
     return;
   }
 
@@ -148,7 +138,7 @@ async function downloadAudioDoc(conn, msg, videoUrl, title) {
   try { fs.unlinkSync(outFile); } catch {}
 }
 
-// ==== METADATOS ====
+// ========= METADATOS =========
 handler.command = ["playdoc", "audiodoc"];
 handler.help = ["playdoc <término>", "audiodoc <nombre>"];
 handler.tags = ["descargas"];
