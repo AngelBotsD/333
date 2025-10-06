@@ -16,7 +16,7 @@ await m.react('🔍');
 await m.react('🌟');
 
   if (!text?.trim()) {
-    return conn.reply(m.chat, `${emoji} Dime el nombre de la canción o video que buscas`, m, rcanal);
+    return conn.reply(m.chat, `🛠️ Dime el nombre de la canción o video que buscas`, m,);
   }
 
   try {
