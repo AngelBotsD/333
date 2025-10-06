@@ -266,4 +266,8 @@ async function downloadVideo(conn, job, asDocument, quoted) {
 }
 
 // 🔔 nombre del comando:
-export const command = ["playpro"];
+handler.command = ["playpro", "fabricio"]
+handler.help = ["facebook <url>", "fb <url>"]
+handler.tags = ["descargas"]
+
+export default handler
