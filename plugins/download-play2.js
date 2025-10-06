@@ -22,6 +22,7 @@ const handler = async (msg, { conn, text }) => {
 
   const { url: videoUrl, title, timestamp: duration, author } = video
   const artista = author.name
+  const safeTitle = title ? title.replace(/[\\\/:*?"<>|]/g, "") : "video"
 
   const apis = [
     { name: "MayAPI", url: `https://mayapi.ooguy.com/ytdl?url=${encodeURIComponent(videoUrl)}&type=mp4&apikey=may-0595dca2` },
@@ -67,6 +68,7 @@ const handler = async (msg, { conn, text }) => {
     const file = path.join(tmp, `${Date.now()}_vid.mp4`)
     const dl = await axios.get(winner.url, { responseType: "stream", timeout: 0 })
     let totalSize = 0
+
     await new Promise((resolve, reject) => {
       const writeStream = fs.createWriteStream(file)
       dl.data.on("data", chunk => {
@@ -84,9 +86,9 @@ const handler = async (msg, { conn, text }) => {
     })
 
     await conn.sendMessage(msg.key.remoteJid, {
-      video: fs.createReadStream(file),
+      video: fs.readFileSync(file),
       mimetype: "video/mp4",
-      fileName: `${title}.mp4`,
+      fileName: `${safeTitle}.mp4`,
       caption: `
 > 𝚅𝙸𝙳𝙴𝙾 𝙳𝙾𝚆𝙽𝙻𝙾𝙰𝙳𝙴𝚁
 
