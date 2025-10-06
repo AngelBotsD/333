@@ -10,26 +10,14 @@ const MAX_FILE_SIZE = 60 * 1024 * 1024 // 60MB
 
 const handler = async (msg, { conn, text }) => {
   if (!text || !text.trim()) {
-    return conn.sendMessage(
-      msg.key.remoteJid,
-      { text: "🎬 Ingresa el nombre de algún video" },
-      { quoted: msg }
-    )
+    return conn.sendMessage(msg.key.remoteJid, { text: "🎬 Ingresa el nombre de algún video" }, { quoted: msg })
   }
 
-  await conn.sendMessage(msg.key.remoteJid, {
-    react: { text: "🕒", key: msg.key }
-  })
+  await conn.sendMessage(msg.key.remoteJid, { react: { text: "🕒", key: msg.key } })
 
   const res = await yts(text)
   const video = res.videos[0]
-  if (!video) {
-    return conn.sendMessage(
-      msg.key.remoteJid,
-      { text: "❌ Sin resultados." },
-      { quoted: msg }
-    )
-  }
+  if (!video) return conn.sendMessage(msg.key.remoteJid, { text: "❌ Sin resultados." }, { quoted: msg })
 
   const { url: videoUrl, title, timestamp: duration, author } = video
   const artista = author.name
@@ -44,21 +32,35 @@ const handler = async (msg, { conn, text }) => {
           quality: r.data.result.quality || "Desconocida",
           api: name
         })
-      } else {
-        reject(new Error(`${name}: No entregó URL válido`))
-      }
+      } else reject(new Error(`${name}: No entregó URL válido`))
     } catch (e) {
       reject(new Error(`${name}: ${e.message}`))
     }
   })
 
-  try {
-    const winner = await Promise.any([
-      tryApi("NeoxR", url => `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(url)}&type=video&quality=best&apikey=russellxz`),
-      tryApi("AdonixAPI", url => `https://api-adonix.ultraplus.click/download/ytmp4?apikey=AdonixKeyno3h1z7435&url=${encodeURIComponent(url)}&quality=best`),
-      tryApi("Sylphy", url => `https://api.sylphy.xyz/download/ytmp4?url=${encodeURIComponent(url)}&apikey=sylphy-fbb9`)
-    ])
+  let winner = null
+  let intentos = 0
 
+  while (!winner && intentos < 2) {
+    intentos++
+    try {
+      winner = await Promise.any([
+        tryApi("NeoxR", url => `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(url)}&type=video&quality=best&apikey=russellxz`),
+        tryApi("AdonixAPI", url => `https://api-adonix.ultraplus.click/download/ytmp4?apikey=AdonixKeyno3h1z7435&url=${encodeURIComponent(url)}&quality=best`),
+        tryApi("Sylphy", url => `https://api.sylphy.xyz/download/ytmp4?url=${encodeURIComponent(url)}&apikey=sylphy-fbb9`)
+      ])
+    } catch (e) {
+      if (intentos === 1) {
+        // Primer intento falló, reacciona 🏜️
+        await conn.sendMessage(msg.key.remoteJid, { react: { text: "🏜️", key: msg.key } })
+      } else {
+        // Segundo intento falló, lanza error
+        throw new Error("Todas las APIs fallaron después de 2 intentos.")
+      }
+    }
+  }
+
+  try {
     const videoDownloadUrl = winner.url
     const calidadElegida = winner.quality
     const apiUsada = winner.api
@@ -97,7 +99,7 @@ const handler = async (msg, { conn, text }) => {
 ⭒ 📺˙⋆｡ - *𝙲𝚊𝚕𝚒𝚍𝚊𝚍:* ${calidadElegida}
 ⭒ 🌐˙⋆｡ - *𝙰𝚙𝚒:* ${apiUsada}
 
-» 𝙑𝙸𝘿𝙴𝙾 𝙀𝙉𝙑𝙸𝘼𝘿𝙊  🎧
+» 𝙑𝙸𝘿𝙴𝙾 𝙀𝙽𝙑𝙸𝘼𝘿𝙊  🎧
 » 𝘿𝙸𝙎𝙁𝙍𝙐𝙏𝘼𝙇𝙊 𝘾𝘼𝙈𝙋𝙀𝙊𝙉..
 
 ⇆‌ ㅤ◁ㅤㅤ❚❚ㅤㅤ▷ㅤ↻
@@ -115,11 +117,7 @@ const handler = async (msg, { conn, text }) => {
 
   } catch (e) {
     console.error(e)
-    await conn.sendMessage(
-      msg.key.remoteJid,
-      { text: `⚠️ Error al descargar el video:\n\n${e.message}` },
-      { quoted: msg }
-    )
+    await conn.sendMessage(msg.key.remoteJid, { text: `⚠️ Error al descargar el video:\n\n${e.message}` }, { quoted: msg })
   }
 }
 
