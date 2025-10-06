@@ -9,75 +9,52 @@ const streamPipe = promisify(pipeline)
 const MAX_FILE_SIZE = 60 * 1024 * 1024 // 60MB
 
 const handler = async (msg, { conn, text }) => {
-  if (!text?.trim()) {
-    return conn.sendMessage(msg.key.remoteJid, { text: "🎬 Ingresa el nombre o URL de un video" }, { quoted: msg })
+  const chat = msg.key.remoteJid
+  if (!text || !text.trim()) {
+    return conn.sendMessage(chat, { text: "🎬 Ingresa el nombre de algún video" }, { quoted: msg })
   }
 
-  await conn.sendMessage(msg.key.remoteJid, { react: { text: "🕒", key: msg.key } })
+  await conn.sendMessage(chat, { react: { text: "🕒", key: msg.key } })
 
-  // Buscar el video en YouTube
   const search = await yts({ query: text, hl: "es", gl: "MX" })
   const video = search.videos[0]
   if (!video) {
-    return conn.sendMessage(msg.key.remoteJid, { text: "❌ No se encontraron resultados." }, { quoted: msg })
+    return conn.sendMessage(chat, { text: "❌ Sin resultados." }, { quoted: msg })
   }
 
   const { url: videoUrl, title, timestamp: duration, author } = video
   const artista = author.name
 
-  // Definición de APIs y calidades
-  const qualities = ["1080p", "720p", "480p", "360p"]
-  const apis = [
-    { name: "Sylphy", base: q => `https://api.sylphy.xyz/download/ytmp4?url=${encodeURIComponent(videoUrl)}&quality=${q}&apikey=sylphy-fbb9` },
-    { name: "Adonix", base: q => `https://api-adonix.ultraplus.click/download/ytmp4?url=${encodeURIComponent(videoUrl)}&quality=${q}&apikey=AdonixKeyno3h1z7435` },
-    { name: "MayAPI", base: q => `https://mayapi.ooguy.com/api/ytmp4?url=${encodeURIComponent(videoUrl)}&quality=${q}&apikey=may-0595dca2` },
-    { name: "SkyAPI", base: q => `https://api-sky.ultraplus.click/api/ytmp4?url=${encodeURIComponent(videoUrl)}&quality=${q}&apikey=Russellxz` }
-  ]
-
-  // Compiten todas las APIs y calidades al mismo tiempo
-  const tryDownload = async () => {
-    const controllers = []
+  const tryApi = (apiName, url) => new Promise(async (resolve, reject) => {
     try {
-      const winner = await Promise.any(
-        apis.flatMap(api =>
-          qualities.map(q => {
-            const controller = new AbortController()
-            controllers.push(controller)
-            const apiUrl = api.base(q)
-
-            return axios
-              .get(apiUrl, { timeout: 10000, signal: controller.signal })
-              .then(res => {
-                const url =
-                  res.data?.result?.url ||
-                  res.data?.data?.url ||
-                  res.data?.result?.download_url ||
-                  res.data?.url
-
-                if (!url || !url.startsWith("http")) throw new Error("No URL válida")
-                return { api: api.name, quality: q, url }
-              })
-          })
-        )
-      )
-
-      // Cancelar el resto de solicitudes
-      controllers.forEach(c => c.abort())
-      return winner
-    } catch (e) {
-      controllers.forEach(c => c.abort())
-      throw new Error("❌ Ninguna API devolvió un enlace válido.")
+      const r = await axios.get(url, { timeout: 12000 })
+      const link = r.data?.result?.url || r.data?.data?.url || r.data?.url
+      if (link) resolve({ url: link, api: apiName })
+      else reject(new Error(`${apiName} no devolvió URL válido`))
+    } catch (err) {
+      reject(new Error(`${apiName}: ${err.message}`))
     }
-  }
+  })
 
   try {
-    const winner = await tryDownload()
-    const { url: videoDownloadUrl, api: apiUsada, quality } = winner
+    // 🔗 APIs en competencia (calidad automática)
+    const apis = [
+      tryApi("Sylphy", `https://api.sylphy.xyz/download/ytmp4?url=${encodeURIComponent(videoUrl)}&apikey=sylphy-fbb9`),
+      tryApi("Adonix", `https://api-adonix.ultraplus.click/download/ytmp4?url=${encodeURIComponent(videoUrl)}&apikey=AdonixKeyno3h1z7435`),
+      tryApi("MayAPI", `https://mayapi.ooguy.com/ytdl?url=${encodeURIComponent(videoUrl)}&apikey=may-0595dca2`),
+      tryApi("Sky", `https://api-sky.ultraplus.click/download/ytmp4?url=${encodeURIComponent(videoUrl)}&apikey=Russellxz`)
+    ]
 
-    // Descargar y enviar el video
+    // 🥇 Gana la primera que responda correctamente
+    const winner = await Promise.any(apis)
+    const { url: videoDownloadUrl, api: apiUsada } = winner
+
+    console.log(`✅ API ganadora: ${apiUsada}`)
+
+    // 📥 Descarga temporal
     const tmp = path.join(process.cwd(), "tmp")
     if (!fs.existsSync(tmp)) fs.mkdirSync(tmp)
-    const file = path.join(tmp, `${Date.now()}_vid.mp4`)
+    const file = path.join(tmp, `${Date.now()}_video.mp4`)
 
     const dl = await axios.get(videoDownloadUrl, { responseType: "stream", timeout: 0 })
     let totalSize = 0
@@ -94,38 +71,30 @@ const handler = async (msg, { conn, text }) => {
       throw new Error("El archivo excede el límite de 60 MB permitido por WhatsApp.")
     }
 
-    await conn.sendMessage(
-      msg.key.remoteJid,
-      {
-        video: fs.readFileSync(file),
-        mimetype: "video/mp4",
-        fileName: `${title}.mp4`,
-        caption: `
-> 🎞️ *YTMP4 DOWNLOADER RÁPIDO*
+    // 📤 Enviar video
+    await conn.sendMessage(chat, {
+      video: fs.readFileSync(file),
+      mimetype: "video/mp4",
+      fileName: `${title}.mp4`,
+      caption: `
+> *🎵 YTMP4 Downloader*
 
-🎵 *Título:* ${title}
-🎤 *Artista:* ${artista}
-🕒 *Duración:* ${duration}
-📺 *Calidad:* ${quality}
-🌐 *API usada:* ${apiUsada}
+⭒ 🎬 *Título:* ${title}
+⭒ 👤 *Artista:* ${artista}
+⭒ ⏱️ *Duración:* ${duration}
+⭒ 🌐 *API:* ${apiUsada}
 
-✅ *Video descargado correctamente*
-        `.trim(),
-        supportsStreaming: true,
-        contextInfo: { isHd: true }
-      },
-      { quoted: msg }
-    )
+» 𝙑𝙄𝘿𝙀𝙊 𝙀𝙉𝙑𝙄𝘼𝘿𝙊 🎧
+      `.trim(),
+      supportsStreaming: true
+    }, { quoted: msg })
 
     fs.unlinkSync(file)
-    await conn.sendMessage(msg.key.remoteJid, { react: { text: "✅", key: msg.key } })
+    await conn.sendMessage(chat, { react: { text: "✅", key: msg.key } })
+
   } catch (e) {
     console.error(e)
-    await conn.sendMessage(
-      msg.key.remoteJid,
-      { text: `⚠️ Error al descargar el video:\n\n${e.message}` },
-      { quoted: msg }
-    )
+    await conn.sendMessage(chat, { text: `⚠️ Error al descargar el video:\n\n${e.message}` }, { quoted: msg })
   }
 }
 
