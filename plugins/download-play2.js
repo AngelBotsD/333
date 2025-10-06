@@ -8,21 +8,24 @@ import { pipeline } from "stream";
 const streamPipe = promisify(pipeline);
 const MAX_FILE_SIZE = 60 * 1024 * 1024;
 
-const ADONIX_API = "https://api-adonix.ultraplus.click/download/ytmp4";
-const ADONIX_KEY = "AdonixKeyno3h1z7435";
+// Config panel SKY premium
+const SKY_BASE = "https://api-sky.ultraplus.click";
+const SKY_KEY = "Russellxz"; // Tu API Key del panel premium
 
+// Descarga directa por stream
 async function downloadToFile(url, filePath) {
-  const res = await axios.get(url, { responseType: "stream" });
+  const res = await axios.get(url, { responseType: "stream", timeout: 0 });
   await streamPipe(res.data, fs.createWriteStream(filePath));
   return filePath;
 }
 
-async function getAdonixVideo(url) {
-  const res = await axios.get(ADONIX_API, {
-    params: { url, apikey: ADONIX_KEY }
+// Llama tu panel SKY para obtener link directo del video
+async function getSkyVideo(url) {
+  const res = await axios.get(`${SKY_BASE}/ytdl`, {
+    params: { url, apikey: SKY_KEY }
   });
   if (!res.data?.status || !res.data?.result?.url) {
-    throw new Error("Adonix no devolvió un link válido.");
+    throw new Error("SKY no devolvió un link válido.");
   }
   return { url: res.data.result.url, quality: res.data.result.quality || "Desconocida" };
 }
@@ -31,11 +34,13 @@ const handler = async (msg, { conn, text }) => {
   const chat = msg.key.remoteJid;
 
   if (!text || !text.trim()) {
-    return conn.sendMessage(chat, { text: "🎬 Ingresa el nombre del video de YouTube.\n\nEjemplo:\n.ytmp4 karma police" }, { quoted: msg });
+    return conn.sendMessage(chat, { text: "🎬 Ingresa el nombre del video de YouTube.\n\nEjemplo:\n.play2 karma police" }, { quoted: msg });
   }
 
+  // reacción de carga
   await conn.sendMessage(chat, { react: { text: "🕒", key: msg.key } });
 
+  // búsqueda rápida
   const search = await yts(text);
   if (!search.videos || search.videos.length === 0) {
     return conn.sendMessage(chat, { text: "❌ No se encontró ningún video." }, { quoted: msg });
@@ -45,7 +50,7 @@ const handler = async (msg, { conn, text }) => {
   const videoUrl = video.url;
   const { title, author, timestamp: duration, thumbnail } = video;
 
-  // preview
+  // preview mientras se descarga
   const caption = `
 > *𝚈𝚃𝙼𝙿4 𝙳𝙾𝚆𝙽𝙻𝙾𝙰𝙳𝙴𝚁*
 
@@ -53,7 +58,7 @@ const handler = async (msg, { conn, text }) => {
 ⭒ 🎤 - *Artista:* ${author?.name || "Desconocido"}
 ⭒ 🕑 - *Duración:* ${duration}
 ⭒ 📺 - *Calidad:* auto
-⭒ 🌐 - *API:* Adonix
+⭒ 🌐 - *API:* SKY
 
 » VIDEO ENVIADO 🎧
 ». DISFRÚTALO CAMPEÓN..
@@ -62,7 +67,7 @@ const handler = async (msg, { conn, text }) => {
   await conn.sendMessage(chat, { image: { url: thumbnail }, caption }, { quoted: msg });
 
   try {
-    const { url: downloadUrl, quality } = await getAdonixVideo(videoUrl);
+    const { url: downloadUrl, quality } = await getSkyVideo(videoUrl);
 
     const tmp = path.join(process.cwd(), "tmp");
     if (!fs.existsSync(tmp)) fs.mkdirSync(tmp, { recursive: true });
@@ -101,5 +106,5 @@ const handler = async (msg, { conn, text }) => {
   }
 };
 
-handler.command = ["ytmp4", "play2"];
+handler.command = ["play2", "ytmp4"];
 export default handler;
