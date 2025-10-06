@@ -38,15 +38,13 @@ const handler = async (msg, { conn, text }) => {
       return new Promise(async (resolve, reject) => {
         const controller = new AbortController()
         try {
-          const apiUrl = urlBuilder() // dejamos que la API elija su calidad
-          const r = await axios.get(apiUrl, { timeout: 60000, signal: controller.signal })
-          if (r.data?.status && (r.data?.result?.url || r.data?.data?.url)) {
-            resolve({
-              url: r.data.result?.url || r.data.data?.url,
-              quality: r.data?.result?.quality || r.data?.data?.quality || "Desconocida",
-              api: apiName,
-              controller
-            })
+          const apiUrl = urlBuilder()
+          const r = await axios.get(apiUrl, { timeout: 10000, signal: controller.signal })
+          if (r.data?.status && (r.data?.result?.url || r.data?.data?.url || r.data?.result?.dl_url)) {
+            // extraer URL y calidad según la API
+            const url = r.data?.result?.url || r.data?.data?.url || r.data?.result?.dl_url
+            const quality = r.data?.result?.quality || r.data?.data?.quality || "Desconocida"
+            resolve({ url, quality, api: apiName, controller })
           } else {
             reject(new Error(`${apiName}: No entregó URL válido`))
           }
@@ -56,21 +54,35 @@ const handler = async (msg, { conn, text }) => {
       })
     }
 
-    // 🔹 Tus 4 APIs personales
-    const sylphyApi = tryApi("Sylphy", () => `https://api.sylphy.xyz/download/ytmp4?url=${encodeURIComponent(videoUrl)}&apikey=sylphy-fbb9`)
-    const adonixApi = tryApi("Adonix", () => `https://api-adonix.ultraplus.click/download/ytmp4?apikey=AdonixKeyno3h1z7435&url=${encodeURIComponent(videoUrl)}`)
-    const mayApi = tryApi("MayAPI", () => `https://mayapi.ooguy.com/ytdl?url=${encodeURIComponent(videoUrl)}&type=mp4&apikey=may-0595dca2`)
-    const skyApi = tryApi("SkyAPI", () => `https://api-sky.ultraplus.click/ytdl?url=${encodeURIComponent(videoUrl)}&type=mp4&apikey=Russellxz`)
+    // 🔹 Competencia de 6 APIs
+    const sylphyApi = tryApi("Sylphy", () =>
+      `https://api.sylphy.xyz/download/ytmp4?url=${encodeURIComponent(videoUrl)}&apikey=sylphy-fbb9`
+    )
+    const adonixApi = tryApi("Adonix", () =>
+      `https://api-adonix.ultraplus.click/download/ytmp4?apikey=AdonixKeyno3h1z7435&url=${encodeURIComponent(videoUrl)}`
+    )
+    const mayApi = tryApi("MayAPI", () =>
+      `https://mayapi.ooguy.com/ytdl?url=${encodeURIComponent(videoUrl)}&type=mp4&apikey=may-0595dca2`
+    )
+    const skyApi = tryApi("SkyAPI", () =>
+      `https://api-sky.ultraplus.click/ytdl?url=${encodeURIComponent(videoUrl)}&type=mp4&apikey=Russellxz`
+    )
+    const fgmodsApi = tryApi("FGMODS", () =>
+      `https://api.fgmods.xyz/api/downloader/ytmp4?url=${encodeURIComponent(videoUrl)}&apikey=elrebelde21`
+    )
+    const neoxrApi = tryApi("NeoxR", () =>
+      `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(videoUrl)}&type=video&quality=720p&apikey=GataDios`
+    )
 
-    // 🔹 Promise.any -> el primero que funcione
+    // 🔹 Promise.any -> gana la primera API que responda
     let winner
     try {
-      winner = await Promise.any([sylphyApi, adonixApi, mayApi, skyApi])
+      winner = await Promise.any([sylphyApi, adonixApi, mayApi, skyApi, fgmodsApi, neoxrApi])
     } catch (err) {
       throw new Error("No se pudo obtener el video de ninguna API.")
     }
 
-    ;[sylphyApi, adonixApi, mayApi, skyApi].forEach(p => {
+    ;[sylphyApi, adonixApi, mayApi, skyApi, fgmodsApi, neoxrApi].forEach(p => {
       if (p !== winner && p.controller) p.controller.abort()
     })
 
@@ -83,6 +95,7 @@ const handler = async (msg, { conn, text }) => {
     const title = videoInfo.title || "Desconocido"
     const artista = videoInfo.author?.name || "Desconocido"
     const duration = videoInfo.timestamp || "Desconocida"
+    const thumb = videoInfo.thumbnail || null
 
     const tmp = path.join(process.cwd(), "tmp")
     if (!fs.existsSync(tmp)) fs.mkdirSync(tmp)
@@ -123,6 +136,7 @@ const handler = async (msg, { conn, text }) => {
 
 > \`\`\`© Powered by hernandez.xyz\`\`\`
 `.trim(),
+        thumbnail: thumb,
         supportsStreaming: true,
         contextInfo: { isHd: true }
       },
