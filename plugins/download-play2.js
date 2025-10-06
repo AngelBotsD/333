@@ -6,11 +6,11 @@ import { promisify } from "util";
 import { pipeline } from "stream";
 
 const streamPipe = promisify(pipeline);
-const MAX_FILE_SIZE = 60 * 1024 * 1024;
+const MAX_FILE_SIZE = 60 * 1024 * 1024; // WhatsApp
 
-// Config panel SKY premium
-const SKY_BASE = "https://api-sky.ultraplus.click";
-const SKY_KEY = "Russellxz"; // Tu API Key del panel premium
+// Config Adonix
+const ADONIX_BASE = "https://api-adonix.ultraplus.click";
+const ADONIX_KEY = "AdonixKeyno3h1z7435";
 
 // Descarga directa por stream
 async function downloadToFile(url, filePath) {
@@ -19,13 +19,14 @@ async function downloadToFile(url, filePath) {
   return filePath;
 }
 
-// Llama tu panel SKY para obtener link directo del video
-async function getSkyVideo(url) {
-  const res = await axios.get(`${SKY_BASE}/ytdl`, {
-    params: { url, apikey: SKY_KEY }
+// Obtiene link directo del video usando Adonix
+async function getAdonixVideo(url) {
+  const res = await axios.get(`${ADONIX_BASE}/download/ytmp4`, {
+    params: { url, apikey: ADONIX_KEY },
+    timeout: 15000 // 15s máximo por intento
   });
   if (!res.data?.status || !res.data?.result?.url) {
-    throw new Error("SKY no devolvió un link válido.");
+    throw new Error("Adonix no devolvió un link válido.");
   }
   return { url: res.data.result.url, quality: res.data.result.quality || "Desconocida" };
 }
@@ -58,7 +59,7 @@ const handler = async (msg, { conn, text }) => {
 ⭒ 🎤 - *Artista:* ${author?.name || "Desconocido"}
 ⭒ 🕑 - *Duración:* ${duration}
 ⭒ 📺 - *Calidad:* auto
-⭒ 🌐 - *API:* SKY
+⭒ 🌐 - *API:* Adonix
 
 » VIDEO ENVIADO 🎧
 ». DISFRÚTALO CAMPEÓN..
@@ -67,7 +68,7 @@ const handler = async (msg, { conn, text }) => {
   await conn.sendMessage(chat, { image: { url: thumbnail }, caption }, { quoted: msg });
 
   try {
-    const { url: downloadUrl, quality } = await getSkyVideo(videoUrl);
+    const { url: downloadUrl, quality } = await getAdonixVideo(videoUrl);
 
     const tmp = path.join(process.cwd(), "tmp");
     if (!fs.existsSync(tmp)) fs.mkdirSync(tmp, { recursive: true });
