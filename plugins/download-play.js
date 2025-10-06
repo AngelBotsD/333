@@ -10,7 +10,7 @@ const streamPipe = promisify(pipeline);
 
 // ==== CONFIG DE TU API ====
 const API_BASE = process.env.API_BASE || "https://api-adonix.ultraplus.click";
-const API_KEY  = process.env.API_KEY  || "Russellxz"; // <-- tu API Key
+const API_KEY  = process.env.API_KEY  || "AdonixKeyno3h1z7435"; // <-- tu API Key
 
 // ==== UTILIDADES ====
 async function downloadToFile(url, filePath) {
