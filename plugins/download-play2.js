@@ -73,7 +73,7 @@ const handler = async (m, { conn, text, command }) => {
 
     if (["play2"].includes(command)) {
       try {
-        const apiURL = `https://api.sylphy.xyz/download/ytmp4?url=${encodeURIComponent(url)}&apikey=sylphy-fbb9`;
+        const apiURL = `https://theadonix-api.vercel.app/api/ytmp4?url=${encodeURIComponent(url)`;
         const res = await fetch(apiURL);
         const json = await res.json();
 
