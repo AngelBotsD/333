@@ -25,13 +25,12 @@ const handler = async (msg, { conn, text }) => {
   const { url: videoUrl, title, timestamp: duration, author, thumbnail } = song;
   const artista = author.name;
 
+  // 🔍 Extraer URL de audio válida en el JSON
   const extractUrl = (data) => {
     const search = (obj) => {
       if (!obj) return null;
       if (typeof obj === "string" && obj.includes("http")) {
-        if (/.(mp3|m4a|opus|webm)$/i.test(obj)) {
-          return obj;
-        }
+        if (/\.(mp3|m4a|opus|webm)$/i.test(obj)) return obj;
       }
       if (typeof obj === "object") {
         for (const key in obj) {
@@ -44,6 +43,7 @@ const handler = async (msg, { conn, text }) => {
     return search(data);
   };
 
+  // 🧩 Intentar con cada API
   const tryApi = async (apiName, url) => {
     const r = await axios.get(url, { timeout: 10000 });
     const audioUrl = extractUrl(r.data);
@@ -51,21 +51,22 @@ const handler = async (msg, { conn, text }) => {
     throw new Error(`${apiName}: No entregó URL válido`);
   };
 
+  // 🌐 APIs compitiendo
   const apis = [
+    tryApi("Sky", `https://api-sky.ultraplus.click/ytdl?url=${encodeURIComponent(videoUrl)}&apikey=Russellxz&type=mp3&quality=128`),
     tryApi("MyAPI", `https://mayapi.ooguy.com/ytdl?url=${encodeURIComponent(videoUrl)}&type=mp3&quality=64&apikey=may-0595dca2`),
     tryApi("Adonix", `https://apiadonix.kozow.com/download/ytmp3?apikey=AdonixKeyo4vwtf9331&url=${encodeURIComponent(videoUrl)}&quality=64`)
   ];
 
   try {
-    const winner = await Promise.any(apis); // la primera que responda bien
+    const winner = await Promise.any(apis); // La primera API funcional
     const audioDownloadUrl = winner.url;
 
-    await conn.sendMessage(  
-      msg.key.remoteJid,  
-      {  
-        image: { url: thumbnail },  
+    await conn.sendMessage(
+      msg.key.remoteJid,
+      {
+        image: { url: thumbnail },
         caption: `
-
 > *𝙰𝚄𝙳𝙸𝙾 𝙳𝙾𝚆𝙽𝙻𝙾𝙰𝙳𝙴𝚁*
 
 ⭒ ִֶָ७ ꯭🎵˙⋆｡ - *𝚃𝚒́𝚝𝚞𝚕𝚘:* ${title}
@@ -74,7 +75,7 @@ const handler = async (msg, { conn, text }) => {
 ⭒ ִֶָ७ ꯭📺˙⋆｡ - *𝙲𝚊𝚕𝚒𝚍𝚊𝚍:* 128kbps
 ⭒ ִֶָ७ ꯭🌐˙⋆｡ - *𝙰𝚙𝚒:* ${winner.api}
 
-» *𝘌𝘕𝘝𝘐𝘈𝘕𝘋𝘖 𝘈𝘜𝘋𝘐𝘖*  🎧
+» *𝘌𝘕𝘝𝘐𝘈𝘕𝘋𝘖 𝘈𝘜𝘋𝘐𝘖* 🎧
 » *𝘈𝘎𝘜𝘈𝘙𝘋𝘌 𝘜𝘕 𝘗𝘖𝘊𝘖*...
 
 ⇆‌ ㅤ◁ㅤㅤ❚❚ㅤㅤ▷ㅤ↻
@@ -85,15 +86,18 @@ const handler = async (msg, { conn, text }) => {
       { quoted: msg }
     );
 
-    await conn.sendMessage(msg.key.remoteJid, {  
-      audio: { url: audioDownloadUrl },  
-      mimetype: "audio/mpeg",  
-      fileName: `${title.slice(0, 30)}.mp3`.replace(/[^\w\s.-]/gi, ''),  
-      ptt: false  
-    }, { quoted: msg });  
+    await conn.sendMessage(
+      msg.key.remoteJid,
+      {
+        audio: { url: audioDownloadUrl },
+        mimetype: "audio/mpeg",
+        fileName: `${title.slice(0, 30)}.mp3`.replace(/[^\w\s.-]/gi, ""),
+        ptt: false
+      },
+      { quoted: msg }
+    );
 
     await conn.sendMessage(msg.key.remoteJid, { react: { text: "✅", key: msg.key } });
-
   } catch (e) {
     const errorMsg = `❌ *Error:* ${
       e.message || "Ninguna API respondió"
@@ -103,5 +107,9 @@ const handler = async (msg, { conn, text }) => {
   }
 };
 
+// 💬 Comando
 handler.command = ["play"];
+handler.help = ["play <nombre>"];
+handler.tags = ["descargas"];
+
 export default handler;
