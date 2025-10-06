@@ -8,9 +8,6 @@ import { pipeline } from "stream";
 
 const streamPipe = promisify(pipeline);
 
-const API_BASE = process.env.API_BASE || "https://api-sky.ultraplus.click";
-const API_KEY  = process.env.API_KEY  || "Russellxz";
-
 async function downloadToFile(url, filePath) {
   const res = await axios.get(url, { responseType: "stream" });
   await streamPipe(res.data, fs.createWriteStream(filePath));
@@ -22,16 +19,22 @@ function fileSizeMB(filePath) {
   return b / (1024 * 1024);
 }
 
-async function callMyApi(url, format) {
-  const r = await axios.get(`${API_BASE}/api/download/yt.php`, {
-    params: { url, format },
-    headers: { Authorization: `Bearer ${API_KEY}` },
-    timeout: 9000
-  });
-  if (!r.data || r.data.status !== "true" || !r.data.data) {
-    throw new Error("API inválida o sin datos");
+// === Nueva función para usar la API de Adonix ===
+async function callMyApi(videoUrl) {
+  const apiUrl = `https://api-adonix.ultraplus.click/download/ytmp3?apikey=Adofreekey&url=${encodeURIComponent(videoUrl)}&quality=64`;
+  const r = await axios.get(apiUrl, { timeout: 9000 });
+
+  if (!r.data || (!r.data.status && !r.data.success)) {
+    throw new Error("API Adonix inválida o sin datos");
   }
-  return r.data.data;
+
+  // Algunas versiones de esta API devuelven "result" o "data"
+  const data = r.data.result || r.data.data || r.data;
+
+  const audio = data?.audio || data?.download || data?.url;
+  if (!audio) throw new Error("No se encontró enlace de audio válido");
+
+  return { audio };
 }
 
 const handler = async (msg, { conn, text }) => {
@@ -55,7 +58,7 @@ const handler = async (msg, { conn, text }) => {
     return conn.sendMessage(msg.key.remoteJid, { text: "❌ Sin resultados." }, { quoted: msg });
   }
 
-  const { url: videoUrl, title, author, timestamp: duration, views, thumbnail } = video;
+  const { url: videoUrl, title, author, timestamp: duration, thumbnail } = video;
 
   const caption = `
 > *𝙰𝚄𝙳𝙸𝙾 𝙳𝙾𝚆𝙽𝙻𝙾𝙰𝙳𝙴𝚁*
@@ -63,8 +66,8 @@ const handler = async (msg, { conn, text }) => {
 ⭒ ִֶָ७ ꯭🎵˙⋆｡ - *𝚃𝚒́𝚝𝚞𝚕𝚘:* ${title}
 ⭒ ִֶָ७ ꯭🎤˙⋆｡ - *𝙰𝚛𝚝𝚒𝚜𝚝𝚊:* ${author?.name || "Desconocido"}
 ⭒ ִֶָ७ ꯭🕑˙⋆｡ - *𝙳𝚞𝚛𝚊𝚌𝚒ó𝚗:* ${duration}
-⭒ ִֶָ७ ꯭📺˙⋆｡ - *𝙲𝚊𝚕𝚒𝚍𝚊𝚍:* 128kbps
-⭒ ִֶָ७ ꯭🌐˙⋆｡ - *𝙰𝚙𝚒:* sky
+⭒ ִֶָ७ ꯭📺˙⋆｡ - *𝙲𝚊𝚕𝚒𝚍𝚊𝚍:* 64kbps
+⭒ ִֶָ७ ꯭🌐˙⋆｡ - *𝙰𝚙𝚒:* adonix
 
 » *𝘌𝘕𝘝𝘐𝘈𝘕𝘋𝘖 𝘈𝘜𝘋𝘐𝘖* 🎧
 » *𝘈𝘎𝘜𝘈𝘙𝘋𝘌 𝘜𝘕 𝘗𝘖𝘊𝘖*...
@@ -90,8 +93,8 @@ const handler = async (msg, { conn, text }) => {
 async function downloadAudio(conn, msg, videoUrl, title) {
   const chatId = msg.key.remoteJid;
 
-  const data = await callMyApi(videoUrl, "audio");
-  const mediaUrl = data.audio || data.video;
+  const data = await callMyApi(videoUrl);
+  const mediaUrl = data.audio;
   if (!mediaUrl) throw new Error("No se pudo obtener audio");
 
   const tmp = path.join(process.cwd(), "tmp");
@@ -111,7 +114,7 @@ async function downloadAudio(conn, msg, videoUrl, title) {
       await new Promise((resolve, reject) =>
         ffmpeg(inFile)
           .audioCodec("libmp3lame")
-          .audioBitrate("128k")
+          .audioBitrate("64k")
           .format("mp3")
           .save(tryOut)
           .on("end", resolve)
