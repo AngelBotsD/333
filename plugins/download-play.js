@@ -21,7 +21,7 @@ function fileSizeMB(filePath) {
 
 // === Nueva función para usar la API de Adonix ===
 async function callMyApi(videoUrl) {
-  const apiUrl = `https://api-adonix.ultraplus.click/download/ytmp3?apikey=Adofreekey&url=${encodeURIComponent(videoUrl)}&quality=64`;
+  const apiUrl = `https://api-adonix.ultraplus.click/download/ytmp3?apikey=Adofreekey&url=${encodeURIComponent(videoUrl)}&quality=128`;
   const r = await axios.get(apiUrl, { timeout: 9000 });
 
   if (!r.data || (!r.data.status && !r.data.success)) {
@@ -114,7 +114,7 @@ async function downloadAudio(conn, msg, videoUrl, title) {
       await new Promise((resolve, reject) =>
         ffmpeg(inFile)
           .audioCodec("libmp3lame")
-          .audioBitrate("64k")
+          .audioBitrate("128k")
           .format("mp3")
           .save(tryOut)
           .on("end", resolve)
