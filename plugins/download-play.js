@@ -26,7 +26,7 @@ function fileSizeMB(filePath) {
 
 async function callMyApi(url, format) {
   const r = await axios.get(`${API_BASE}/api/download/yt.php`, {
-    params: { url, format }, // format: 'audio' o 'video'
+    params: { url, format },
     headers: { Authorization: `Bearer ${API_KEY}` },
     timeout: 60000
   });
@@ -53,36 +53,44 @@ const handler = async (msg, { conn, text }) => {
     react: { text: "⏳", key: msg.key }
   });
 
-  // búsqueda en YouTube
+  // búsqueda
   const res = await yts(text);
   const video = res.videos?.[0];
   if (!video) {
     return conn.sendMessage(msg.key.remoteJid, { text: "❌ Sin resultados." }, { quoted: msg });
   }
 
-  const { url: videoUrl, title, thumbnail, author, timestamp: duration, views } = video;
-  const viewsFmt = (views || 0).toLocaleString();
+  const { url: videoUrl, title, author, timestamp: duration, views, thumbnail } = video;
 
+  // plantilla decorada ✨
   const caption = `
-❦𝑳𝑨 𝑺𝑼𝑲𝑰 𝑩𝑶𝑻❦
+> *𝙰𝚄𝙳𝙸𝙾 𝙳𝙾𝚆𝙽𝙻𝙾𝙰𝙳𝙴𝚁*
+⭒ ִֶָ७ ꯭🎵˙⋆｡ - *𝚃𝚒́𝚝𝚞𝚕𝚘:* ${title}
+⭒ ִֶָ७ ꯭🎤˙⋆｡ - *𝙰𝚛𝚝𝚒𝚜𝚝𝚊:* ${author?.name || "Desconocido"}
+⭒ ִֶָ७ ꯭🕑˙⋆｡ - *𝙳𝚞𝚛𝚊𝚌𝚒ó𝚗:* ${duration}
+⭒ ִֶָ७ ꯭📺˙⋆｡ - *𝙲𝚊𝚕𝚒𝚍𝚊𝚍:* 128kbps
+⭒ ִֶָ७ ꯭🌐˙⋆｡ - *𝙰𝚙𝚒:* api-sky.ultraplus.click
 
-📀 𝙸𝚗𝚏𝚘 𝚍𝚎𝚕 𝚊𝚞𝚍𝚒𝚘:
-❥ 𝑻𝒊𝒕𝒖𝒍𝒐: ${title}
-❥ 𝑫𝒖𝒓𝒂𝒄𝒊𝒐𝒏: ${duration}
-❥ 𝑽𝒊𝒔𝒕𝒂𝒔: ${viewsFmt}
-❥ 𝑨𝒖𝒕𝒐𝒓: ${author?.name || "Desconocido"}
-❥ 𝑳𝒊𝒏𝒌: ${videoUrl}
-❥ API: api-sky.ultraplus.click
-
-🎵 𝑳𝒂 𝑺𝒖𝒌𝒊 𝑩𝒐𝒕 - Audio
+» *𝘌𝘕𝘝𝘐𝘈𝘕𝘋𝘖 𝘈𝘜𝘋𝘐𝘖* 🎧
+» *𝘈𝘎𝘜𝘈𝘙𝘋𝘌 𝘜𝘕 𝘗𝘖𝘊𝘖*...
+⇆‌ ㅤ◁ㅤㅤ❚❚ㅤㅤ▷ㅤ↻
+> \`\`\`© 𝖯𝗈𝗐𝖾𝗋𝖾𝗱 𝖻𝗒 𝗁𝖾𝗋𝗇𝖺𝗇𝖽𝖾𝗓.𝗑𝗒𝗓\`\`\`
 `.trim();
 
-  // envía preview
-  await conn.sendMessage(msg.key.remoteJid, { image: { url: thumbnail }, caption }, { quoted: msg });
+  // envía preview con info
+  await conn.sendMessage(
+    msg.key.remoteJid,
+    { image: { url: thumbnail }, caption },
+    { quoted: msg }
+  );
 
-  // descarga y envío
-  await conn.sendMessage(msg.key.remoteJid, { text: "🎶 Descargando audio..." }, { quoted: msg });
+  // descarga y envía el audio
   await downloadAudio(conn, msg, videoUrl, title);
+
+  // reacción final
+  await conn.sendMessage(msg.key.remoteJid, {
+    react: { text: "✅", key: msg.key }
+  });
 };
 
 // ==== DESCARGA DE AUDIO ====
