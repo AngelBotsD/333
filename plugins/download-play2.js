@@ -19,86 +19,55 @@ const handler = async (msg, { conn, text }) => {
     )
   }
 
-  await conn.sendMessage(chat, {
-    react: { text: "🕒", key: msg.key }
-  })
+  await conn.sendMessage(chat, { react: { text: "🕒", key: msg.key } })
 
   try {
     // 🔍 Buscar video por texto
     const search = await yts(text)
-    if (!search.videos || search.videos.length === 0) {
+    if (!search.videos || search.videos.length === 0)
       throw new Error("No se encontró ningún video con ese nombre.")
-    }
 
     const video = search.videos[0]
     const videoUrl = video.url
 
-    const posibles = ["2160p", "1440p", "1080p", "720p", "480p", "360p", "240p", "144p"]
     let videoDownloadUrl = null
     let calidadElegida = "Desconocida"
     let apiUsada = "Desconocida"
-    let errorLogs = []
 
     const tryApi = (apiName, urlBuilder) => {
       return new Promise(async (resolve, reject) => {
-        let intentos = 0
-        const maxIntentos = 2
-        const attempt = async () => {
-          intentos++
-          const controller = new AbortController()
-          try {
-            for (const q of posibles) {
-              const apiUrl = urlBuilder(q)
-              const r = await axios.get(apiUrl, {
-                timeout: 60000,
-                signal: controller.signal
-              })
-              if (r.data?.status && (r.data?.result?.url || r.data?.data?.url)) {
-                resolve({
-                  url: r.data.result?.url || r.data.data?.url,
-                  quality: r.data?.result?.quality || r.data?.data?.quality || q,
-                  api: apiName,
-                  controller
-                })
-                return
-              }
-            }
-            throw new Error(`${apiName}: No entregó un URL válido`)
-          } catch (err) {
-            if (intentos < maxIntentos) {
-              console.log(`${apiName} abortado, reintentando... (${intentos}/${maxIntentos})`)
-              await attempt()
-            } else {
-              reject(new Error(`${apiName}: ${err.message}`))
-            }
+        const controller = new AbortController()
+        try {
+          const apiUrl = urlBuilder() // dejamos que la API elija su calidad
+          const r = await axios.get(apiUrl, { timeout: 60000, signal: controller.signal })
+          if (r.data?.status && (r.data?.result?.url || r.data?.data?.url)) {
+            resolve({
+              url: r.data.result?.url || r.data.data?.url,
+              quality: r.data?.result?.quality || r.data?.data?.quality || "Desconocida",
+              api: apiName,
+              controller
+            })
+          } else {
+            reject(new Error(`${apiName}: No entregó URL válido`))
           }
+        } catch (err) {
+          reject(new Error(`${apiName}: ${err.message}`))
         }
-        attempt()
       })
     }
 
-    // 🔹 Tus APIs personalizadas
-    const sylphyApi = tryApi("Sylphy", q =>
-      `https://api.sylphy.xyz/download/ytmp4?url=${encodeURIComponent(videoUrl)}&apikey=sylphy-fbb9`
-    )
+    // 🔹 Tus 4 APIs personales
+    const sylphyApi = tryApi("Sylphy", () => `https://api.sylphy.xyz/download/ytmp4?url=${encodeURIComponent(videoUrl)}&apikey=sylphy-fbb9`)
+    const adonixApi = tryApi("Adonix", () => `https://api-adonix.ultraplus.click/download/ytmp4?apikey=AdonixKeyno3h1z7435&url=${encodeURIComponent(videoUrl)}`)
+    const mayApi = tryApi("MayAPI", () => `https://mayapi.ooguy.com/ytdl?url=${encodeURIComponent(videoUrl)}&type=mp4&apikey=may-0595dca2`)
+    const skyApi = tryApi("SkyAPI", () => `https://api-sky.ultraplus.click/ytdl?url=${encodeURIComponent(videoUrl)}&type=mp4&apikey=Russellxz`)
 
-    const adonixApi = tryApi("Adonix", q =>
-      `https://api-adonix.ultraplus.click/download/ytmp4?apikey=AdonixKeyno3h1z7435&url=${encodeURIComponent(videoUrl)}&quality=${q}`
-    )
-
-    const mayApi = tryApi("MayAPI", q =>
-      `https://mayapi.ooguy.com/ytdl?url=${encodeURIComponent(videoUrl)}&type=mp4&quality=${q}&apikey=may-0595dca2`
-    )
-
-    const skyApi = tryApi("SkyAPI", q =>
-      `https://api-sky.ultraplus.click/ytdl?url=${encodeURIComponent(videoUrl)}&type=mp4&quality=${q}&apikey=Russellxz`
-    )
-
+    // 🔹 Promise.any -> el primero que funcione
     let winner
     try {
       winner = await Promise.any([sylphyApi, adonixApi, mayApi, skyApi])
     } catch (err) {
-      throw new Error("No se pudo obtener el video en ninguna calidad.\n\nLogs:\n" + errorLogs.join("\n"))
+      throw new Error("No se pudo obtener el video de ninguna API.")
     }
 
     ;[sylphyApi, adonixApi, mayApi, skyApi].forEach(p => {
@@ -143,19 +112,17 @@ const handler = async (msg, { conn, text }) => {
         caption: `
 > *𝚈𝚃𝙼𝙿4 𝙳𝙾𝚆𝙽𝙻𝙾𝙰𝙳𝙴𝚁*
 
-⭒ ִֶָ७ ꯭🎵˙⋆｡ - *𝚃𝚒́𝚝𝚞𝚕𝚘:* ${title}
-⭒ ִֶָ७ ꯭🎤˙⋆｡ - *𝙰𝚛𝚝𝚒𝚜𝚝𝚊:* ${artista}
-⭒ ִֶָ७ ꯭🕑˙⋆｡ - *𝙳𝚞𝚛𝚊𝚌𝚒ó𝚗:* ${duration}
-⭒ ִֶָ७ ꯭📺˙⋆｡ - *𝙲𝚊𝚕𝚒𝚍𝚊𝚍:* ${calidadElegida}
-⭒ ִֶָ७ ꯭🌐˙⋆｡ - *𝙰𝚙𝚒:* ${apiUsada}
+⭒ 🎵 - *Título:* ${title}
+⭒ 🎤 - *Artista:* ${artista}
+⭒ 🕑 - *Duración:* ${duration}
+⭒ 📺 - *Calidad:* ${calidadElegida}
+⭒ 🌐 - *API:* ${apiUsada}
 
-» 𝙑𝙄𝘿𝙀𝙊 𝙀𝙉𝙑𝙄𝘼𝘿𝙊  🎧
-» 𝘿𝙄𝙎𝙁𝙍𝙐𝙏𝘼𝙇𝙊 𝘾𝘼𝙈𝙋𝙀𝙊𝙉..
+» VIDEO ENVIADO 🎧
+» DISFRÚTALO CAMPEÓN..
 
-⇆‌ ㅤ◁ㅤㅤ❚❚ㅤㅤ▷ㅤ↻
-
-> \`\`\`© 𝖯𝗈𝗐𝖾𝗋𝖾𝖽 𝖻𝗒 𝗁𝖾𝗋𝗇𝖺𝗇𝖽𝖾𝗓.𝗑𝗒𝗓\`\`\`
- `.trim(),
+> \`\`\`© Powered by hernandez.xyz\`\`\`
+`.trim(),
         supportsStreaming: true,
         contextInfo: { isHd: true }
       },
@@ -172,5 +139,4 @@ const handler = async (msg, { conn, text }) => {
 }
 
 handler.command = ["play2"]
-
 export default handler
