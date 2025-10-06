@@ -50,7 +50,7 @@ const handler = async (msg, { conn, text }) => {
 
   // reacción de carga
   await conn.sendMessage(msg.key.remoteJid, {
-    react: { text: "⏳", key: msg.key }
+    react: { text: "🕒", key: msg.key }
   });
 
   // búsqueda
@@ -77,7 +77,7 @@ const handler = async (msg, { conn, text }) => {
 
 ⇆‌ ㅤ◁ㅤㅤ❚❚ㅤㅤ▷ㅤ↻
 
-> \`\`\`© 𝖯𝗈𝗐𝖾𝗋𝖾𝗱 𝖻𝗒 𝗁𝖾𝗋𝗇𝖺𝗇𝖽𝖾𝗓.𝗑𝗒𝗓\`\`\`
+> \`\`\`© 𝖯𝗈𝗐𝖾𝗋𝖾𝗱 𝖻𝗒 angel.𝗑𝗒𝗓\`\`\`
 `.trim();
 
   // envía preview con info
