@@ -9,105 +9,76 @@ const streamPipe = promisify(pipeline)
 const MAX_FILE_SIZE = 60 * 1024 * 1024 // 60MB
 
 const handler = async (msg, { conn, text }) => {
-  if (!text || !text.trim()) {
-    return conn.sendMessage(
-      msg.key.remoteJid,
-      { text: "🎬 Ingresa el nombre o URL de un video" },
-      { quoted: msg }
-    )
+  if (!text?.trim()) {
+    return conn.sendMessage(msg.key.remoteJid, { text: "🎬 Ingresa el nombre o URL de un video" }, { quoted: msg })
   }
 
   await conn.sendMessage(msg.key.remoteJid, { react: { text: "🕒", key: msg.key } })
 
+  // Buscar el video en YouTube
   const search = await yts({ query: text, hl: "es", gl: "MX" })
   const video = search.videos[0]
   if (!video) {
-    return conn.sendMessage(
-      msg.key.remoteJid,
-      { text: "❌ No se encontraron resultados." },
-      { quoted: msg }
-    )
+    return conn.sendMessage(msg.key.remoteJid, { text: "❌ No se encontraron resultados." }, { quoted: msg })
   }
 
   const { url: videoUrl, title, timestamp: duration, author } = video
   const artista = author.name
-  const posibles = ["1080p", "720p", "480p", "360p", "240p", "144p"]
 
-  let videoDownloadUrl = null
-  let apiUsada = "Desconocida"
+  // Definición de APIs y calidades
+  const qualities = ["1080p", "720p", "480p", "360p"]
+  const apis = [
+    { name: "Sylphy", base: q => `https://api.sylphy.xyz/download/ytmp4?url=${encodeURIComponent(videoUrl)}&quality=${q}&apikey=sylphy-fbb9` },
+    { name: "Adonix", base: q => `https://api-adonix.ultraplus.click/download/ytmp4?url=${encodeURIComponent(videoUrl)}&quality=${q}&apikey=AdonixKeyno3h1z7435` },
+    { name: "MayAPI", base: q => `https://mayapi.ooguy.com/api/ytmp4?url=${encodeURIComponent(videoUrl)}&quality=${q}&apikey=may-0595dca2` },
+    { name: "SkyAPI", base: q => `https://api-sky.ultraplus.click/api/ytmp4?url=${encodeURIComponent(videoUrl)}&quality=${q}&apikey=Russellxz` }
+  ]
 
+  // Compiten todas las APIs y calidades al mismo tiempo
   const tryDownload = async () => {
-    let winner = null
-    let intentos = 0
-
-    while (!winner && intentos < 2) {
-      intentos++
-      try {
-        const tryApi = (apiName, urlBuilder) =>
-          new Promise(async (resolve, reject) => {
+    const controllers = []
+    try {
+      const winner = await Promise.any(
+        apis.flatMap(api =>
+          qualities.map(q => {
             const controller = new AbortController()
-            try {
-              for (const q of posibles) {
-                const apiUrl = urlBuilder(q)
-                const r = await axios.get(apiUrl, { timeout: 10000, signal: controller.signal })
-                if (r.data?.result?.url || r.data?.data?.url) {
-                  resolve({
-                    url: r.data.result?.url || r.data.data?.url,
-                    api: apiName,
-                    controller
-                  })
-                  return
-                }
-              }
-              reject(new Error(`${apiName}: No entregó un URL válido`))
-            } catch (err) {
-              if (
-                err.message &&
-                (err.message.toLowerCase().includes("aborted") ||
-                 err.message.toLowerCase().includes("canceled"))
-              )
-                return
-              reject(new Error(`${apiName}: ${err.message}`))
-            }
+            controllers.push(controller)
+            const apiUrl = api.base(q)
+
+            return axios
+              .get(apiUrl, { timeout: 10000, signal: controller.signal })
+              .then(res => {
+                const url =
+                  res.data?.result?.url ||
+                  res.data?.data?.url ||
+                  res.data?.result?.download_url ||
+                  res.data?.url
+
+                if (!url || !url.startsWith("http")) throw new Error("No URL válida")
+                return { api: api.name, quality: q, url }
+              })
           })
+        )
+      )
 
-        const sylphyApi = tryApi("Sylphy", q =>
-          `https://api.sylphy.xyz/download/ytmp4?url=${encodeURIComponent(videoUrl)}&quality=${q}&apikey=sylphy-fbb9`
-        )
-        const adonixApi = tryApi("Adonix", q =>
-          `https://api-adonix.ultraplus.click/download/ytmp4?url=${encodeURIComponent(videoUrl)}&quality=${q}&apikey=AdonixKeyno3h1z7435`
-        )
-        const mayApi = tryApi("MayAPI", q =>
-          `https://mayapi.ooguy.com/api/ytmp4?url=${encodeURIComponent(videoUrl)}&quality=${q}&apikey=may-0595dca2`
-        )
-        const skyApi = tryApi("SkyAPI", q =>
-          `https://api-sky.ultraplus.click/api/ytmp4?url=${encodeURIComponent(videoUrl)}&quality=${q}&apikey=Russellxz`
-        )
-
-        winner = await Promise.any([sylphyApi, adonixApi, mayApi, skyApi])
-        ;[sylphyApi, adonixApi, mayApi, skyApi].forEach(p => {
-          if (p !== winner && p.controller) p.controller.abort()
-        })
-      } catch (e) {
-        if (intentos >= 2)
-          throw new Error("❌ No se pudo obtener el video después de 2 intentos.")
-      }
+      // Cancelar el resto de solicitudes
+      controllers.forEach(c => c.abort())
+      return winner
+    } catch (e) {
+      controllers.forEach(c => c.abort())
+      throw new Error("❌ Ninguna API devolvió un enlace válido.")
     }
-
-    return winner
   }
 
   try {
     const winner = await tryDownload()
-    videoDownloadUrl = winner.url
-    apiUsada = winner.api
+    const { url: videoDownloadUrl, api: apiUsada, quality } = winner
 
-    // Crear carpeta temporal
+    // Descargar y enviar el video
     const tmp = path.join(process.cwd(), "tmp")
     if (!fs.existsSync(tmp)) fs.mkdirSync(tmp)
     const file = path.join(tmp, `${Date.now()}_vid.mp4`)
 
-    // Descargar video
     const dl = await axios.get(videoDownloadUrl, { responseType: "stream", timeout: 0 })
     let totalSize = 0
     dl.data.on("data", chunk => {
@@ -130,12 +101,13 @@ const handler = async (msg, { conn, text }) => {
         mimetype: "video/mp4",
         fileName: `${title}.mp4`,
         caption: `
-> *🎞️ 𝚈𝚃𝙼𝙿4 𝙳𝙾𝚆𝙽𝙻𝙾𝙰𝙳𝙴𝚁*
+> 🎞️ *YTMP4 DOWNLOADER RÁPIDO*
 
-⭒ 🎵 *Título:* ${title}
-⭒ 🎤 *Artista:* ${artista}
-⭒ 🕒 *Duración:* ${duration}
-⭒ 🌐 *API usada:* ${apiUsada}
+🎵 *Título:* ${title}
+🎤 *Artista:* ${artista}
+🕒 *Duración:* ${duration}
+📺 *Calidad:* ${quality}
+🌐 *API usada:* ${apiUsada}
 
 ✅ *Video descargado correctamente*
         `.trim(),
