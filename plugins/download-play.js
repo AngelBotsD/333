@@ -9,8 +9,8 @@ import { pipeline } from "stream";
 const streamPipe = promisify(pipeline);
 
 // ==== CONFIG DE TU API ====
-const API_BASE = process.env.API_BASE || "https://api-sky.ultraplus.click";
-const API_KEY  = process.env.API_KEY  || "Russellxz"; // <-- tu API Key
+const API_BASE = process.env.API_BASE || "https://api-adonix.ultraplus.click";
+const API_KEY  = process.env.API_KEY  || "Adofreekey"; // <-- tu nueva API Key
 
 // ==== UTILIDADES ====
 async function downloadToFile(url, filePath) {
@@ -48,12 +48,10 @@ const handler = async (msg, { conn, text }) => {
     );
   }
 
-  // reacción de carga
   await conn.sendMessage(msg.key.remoteJid, {
     react: { text: "🕒", key: msg.key }
   });
 
-  // búsqueda
   const res = await yts(text);
   const video = res.videos?.[0];
   if (!video) {
@@ -62,7 +60,6 @@ const handler = async (msg, { conn, text }) => {
 
   const { url: videoUrl, title, author, timestamp: duration, views, thumbnail } = video;
 
-  // plantilla decorada ✨
   const caption = `
 > *𝙰𝚄𝙳𝙸𝙾 𝙳𝙾𝚆𝙽𝙻𝙾𝙰𝙳𝙴𝚁*
 
@@ -70,7 +67,7 @@ const handler = async (msg, { conn, text }) => {
 ⭒ ִֶָ७ ꯭🎤˙⋆｡ - *𝙰𝚛𝚝𝚒𝚜𝚝𝚊:* ${author?.name || "Desconocido"}
 ⭒ ִֶָ७ ꯭🕑˙⋆｡ - *𝙳𝚞𝚛𝚊𝚌𝚒ó𝚗:* ${duration}
 ⭒ ִֶָ७ ꯭📺˙⋆｡ - *𝙲𝚊𝚕𝚒𝚍𝚊𝚍:* 128kbps
-⭒ ִֶָ७ ꯭🌐˙⋆｡ - *𝙰𝚙𝚒:* sky
+⭒ ִֶָ७ ꯭🌐˙⋆｡ - *𝙰𝚙𝚒:* adonix
 
 » *𝘌𝘕𝘝𝘐𝘈𝘕𝘋𝘖 𝘈𝘜𝘋𝘐𝘖* 🎧
 » *𝘈𝘎𝘜𝘈𝘙𝘋𝘌 𝘜𝘕 𝘗𝘖𝘊𝘖*...
@@ -80,17 +77,14 @@ const handler = async (msg, { conn, text }) => {
 > \`\`\`© 𝖯𝗈𝗐𝖾𝗋𝖾𝗱 𝖻𝗒 angel.𝗑𝗒𝗓\`\`\`
 `.trim();
 
-  // envía preview con info
   await conn.sendMessage(
     msg.key.remoteJid,
     { image: { url: thumbnail }, caption },
     { quoted: msg }
   );
 
-  // descarga y envía el audio
   await downloadAudio(conn, msg, videoUrl, title);
 
-  // reacción final
   await conn.sendMessage(msg.key.remoteJid, {
     react: { text: "✅", key: msg.key }
   });
