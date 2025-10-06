@@ -1,102 +1,118 @@
-import axios from "axios";
+import fetch from "node-fetch";
 import yts from "yt-search";
-import fs from "fs";
-import path from "path";
-import { promisify } from "util";
-import { pipeline } from "stream";
+import Jimp from "jimp";
 
-const streamPipe = promisify(pipeline);
-
-// ==== CONFIG DE TU API ====
-const API_BASE = "https://api-adonix.ultraplus.click";
-const API_KEY  = "AdonixKeyno3h1z7435";
-
-// ===== UTILIDADES =====
-async function downloadToFile(url, filePath) {
-  const res = await axios.get(url, { responseType: "stream" });
-  await streamPipe(res.data, fs.createWriteStream(filePath));
-  return filePath;
+async function resizeImage(buffer, size = 300) {
+  const image = await Jimp.read(buffer);
+  return image.resize(size, size).getBufferAsync(Jimp.MIME_JPEG);
 }
 
-function fileSizeMB(filePath) {
-  const b = fs.statSync(filePath).size;
-  return b / (1024 * 1024);
-}
+const handler = async (m, { conn, text, command }) => {
+  await m.react('🔎');
+  await m.react('🔍');
+  await m.react('🌟');
 
-async function callMyApi(url, format) {
-  const r = await axios.get(`${API_BASE}/api/download/yt.php`, {
-    params: { url, format }, // format: 'audio' | 'video'
-    headers: { Authorization: `Bearer ${API_KEY}` },
-    timeout: 9000
-  });
-  if (!r.data || r.data.status !== "true" || !r.data.data) {
-    throw new Error("API inválida o sin datos");
-  }
-  return r.data.data;
-}
-
-// ===== COMANDO PRINCIPAL =====
-const handler = async (msg, { conn, text }) => {
-  if (!text || !text.trim()) {
-    return conn.sendMessage(msg.key.remoteJid, {
-      text: "✳️ Usa: .play2 <término>\nEj: .play2 bad bunny diles"
-    }, { quoted: msg });
+  if (!text?.trim()) {
+    return conn.reply(m.chat, `❌ Dime el nombre del video que buscas`, m);
   }
 
-  await conn.sendMessage(msg.key.remoteJid, { react: { text: "⏳", key: msg.key } });
+  try {
+    const search = await yts.search({ query: text, pages: 1 });
+    if (!search.videos.length) return m.reply("❌ No se encontró nada con ese nombre.");
 
-  // búsqueda
-  const res = await yts(text);
-  const video = res.videos?.[0];
-  if (!video) return conn.sendMessage(msg.key.remoteJid, { text: "❌ Sin resultados." }, { quoted: msg });
+    const videoInfo = search.videos[0];
+    const { title, thumbnail, timestamp, views, ago, url, author } = videoInfo;
 
-  const { url: videoUrl, title, timestamp: duration, views, author, thumbnail } = video;
-  const viewsFmt = (views || 0).toLocaleString();
+    const thumbFileRes = await conn.getFile(thumbnail);
+    const thumb = thumbFileRes.data;
+    const thumbResized = await resizeImage(thumb, 300);
 
-  const caption = `
-❦𝑳𝑨 𝑺𝑼𝑲𝑰 𝑩𝑶𝑻❦
+    const fkontak2 = {
+      key: { fromMe: false, participant: "0@s.whatsapp.net" },
+      message: {
+        documentMessage: {
+          title: "𝗗𝗘𝗦𝗖𝗔𝗥𝗚𝗔𝗡𝗗𝗢",
+          fileName: global.botname || "Bot",
+          jpegThumbnail: thumb
+        }
+      }
+    };
 
-📀 𝙸𝚗𝚏𝚘 𝚍𝚎𝚕 𝚟𝚒𝚍𝚎𝚘:
-❥ 𝑻𝒊𝒕𝒖𝒍𝒐: ${title}
-❥ 𝑫𝒖𝒓𝒂𝒄𝒊𝒐𝒏: ${duration}
-❥ 𝑽𝒊𝒔𝒕𝒂𝒔: ${viewsFmt}
-❥ 𝑨𝒖𝒕𝒐𝒓: ${author?.name || author || "Desconocido"}
-❥ 𝑳𝒊𝒏𝒌: ${videoUrl}
-❥ API: api-adonix.ultraplus.click
-❦𝑳𝑨 𝑺𝑼𝑲𝑰 𝑩𝑶𝑻❦
-`.trim();
+    const fkontak = {
+      key: { fromMe: false, participant: "0@s.whatsapp.net" },
+      message: {
+        orderMessage: {
+          itemCount: 1,
+          status: 1,
+          surface: 1,
+          message: `「 ${title} 」`,
+          orderTitle: "Mejor Bot",
+          thumbnail: thumbResized
+        }
+      }
+    };
 
-  await conn.sendMessage(msg.key.remoteJid, { image: { url: thumbnail }, caption }, { quoted: msg });
+    const vistas = formatViews(views);
 
-  // descarga directa
-  const data = await callMyApi(videoUrl, "video");
-  const mediaUrl = data.video || data.audio;
-  if (!mediaUrl) return conn.sendMessage(msg.key.remoteJid, { text: "❌ No se pudo obtener el video." }, { quoted: msg });
+    const infoMessage = `★ ${global.botname || 'Bot'} ★
 
-  const tmp = path.join(process.cwd(), "tmp");
-  if (!fs.existsSync(tmp)) fs.mkdirSync(tmp, { recursive: true });
-  const file = path.join(tmp, `${Date.now()}_vid.mp4`);
-  await downloadToFile(mediaUrl, file);
+┏☾ *Titulo:* 「 ${title} 」 
+┃✎ *Canal:* ${author?.name || 'Desconocido'} 
+┃✎ *Vistas:* ${vistas} 
+┃✎ *Duración:* ${timestamp}
+┃✎ *Publicado:* ${ago}`;
 
-  const sizeMB = fileSizeMB(file);
-  if (sizeMB > 99) {
-    try { fs.unlinkSync(file); } catch {}
-    return conn.sendMessage(msg.key.remoteJid, { text: `❌ El video pesa ${sizeMB.toFixed(2)}MB (>99MB).` }, { quoted: msg });
+    await conn.sendMessage(
+      m.chat,
+      {
+        image: thumb,
+        caption: infoMessage,
+      },
+      { quoted: fkontak2 }
+    );
+
+    if (["play2"].includes(command)) {
+      try {
+        const apiURL = `https://api.sylphy.xyz/download/ytmp4?url=${encodeURIComponent(url)}&apikey=sylphy-fbb9`;
+        const res = await fetch(apiURL);
+        const json = await res.json();
+
+        if (!json?.status || !json.res?.url) {
+          return m.reply("❌ No se pudo descargar el video desde Sylphy.");
+        }
+
+        await m.react('📽️');
+        await conn.sendMessage(
+          m.chat,
+          {
+            video: { url: json.res.url },
+            fileName: `${json.res.title || title}.mp4`,
+            mimetype: "video/mp4",
+            thumbnail: thumb
+          },
+          { quoted: fkontak }
+        );
+
+      } catch (err) {
+        console.error("❌ Error en play2:", err.message);
+        return m.reply(`⚠️ Ocurrió un error: ${err.message}`);
+      }
+    }
+
+  } catch (error) {
+    console.error("❌ Error:", error);
+    return m.reply(`⚠️ Ocurrió un error: ${error.message}`);
   }
-
-  await conn.sendMessage(msg.key.remoteJid, {
-    video: fs.readFileSync(file),
-    mimetype: "video/mp4",
-    fileName: `${title}.mp4`,
-    caption: `🎬 𝐀𝐪𝐮𝐢́ 𝐭𝐢𝐞𝐧𝐞𝐬 𝐭𝐮 𝐯𝐢𝐝𝐞𝐨~ 💫\n• API: api-adonix.ultraplus.click\n© 𝐋𝐚 𝐒𝐮𝐤𝐢 𝐁𝐨𝐭`
-  }, { quoted: msg });
-
-  try { fs.unlinkSync(file); } catch {}
 };
 
-// ===== METADATOS =====
-handler.command = ["play2", "videoplay"];
-handler.help = ["play2 <término>"];
-handler.tags = ["descargas"];
+handler.command = handler.help = ["play2"];
+handler.tags = ["downloader"];
 
 export default handler;
+
+function formatViews(views) {
+  if (typeof views !== "number" || isNaN(views)) return "Desconocido";
+  return views >= 1000
+    ? (views / 1000).toFixed(1) + "k (" + views.toLocaleString() + ")"
+    : views.toString();
+}
