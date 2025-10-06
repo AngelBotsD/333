@@ -32,68 +32,62 @@ const handler = async (msg, { conn, text }) => {
   const tryDownload = async () => {
     let winner = null
     let intentos = 0
-
     while (!winner && intentos < MAX_INTENTOS) {
       intentos++
       try {
         const tasks = apis.map(api => new Promise(async (resolve, reject) => {
           const controller = new AbortController()
           try {
-            const r = await axios.get(api.url, { timeout: 12000, signal: controller.signal }) // ✅ timeout 12s
+            const r = await axios.get(api.url, { timeout: 12000, signal: controller.signal })
             const link = r.data?.result?.url || r.data?.data?.url
-            const quality = r.data?.result?.quality || r.data?.data?.quality || "Desconocida"
+            const quality = r.data?.result?.quality || r.data?.data?.quality || "API decide"
             if (r.data?.status && link) resolve({ url: link, api: api.name, quality, controller })
             else reject(new Error("Sin link válido"))
           } catch (err) {
             if (!err.message.toLowerCase().includes("aborted")) reject(err)
           }
         }))
-
         winner = await Promise.any(tasks)
-        // Abortar APIs que no ganaron
         tasks.forEach(t => { if (t !== winner && t.controller) t.controller.abort() })
-
       } catch (e) {
-        if (intentos === 1) {
-          // 🔗 Reacción al primer fallo
+        if (intentos === 1)
           await conn.sendMessage(msg.key.remoteJid, { react: { text: "🔗", key: msg.key } })
-        }
         if (intentos >= MAX_INTENTOS) throw new Error("No se pudo obtener el video después de 2 intentos.")
       }
     }
-
     return winner
   }
 
+  const tmp = path.join(process.cwd(), "tmp")
+  if (!fs.existsSync(tmp)) fs.mkdirSync(tmp)
+  fs.readdirSync(tmp).forEach(f => { const filePath = path.join(tmp, f); if (fs.existsSync(filePath)) fs.unlinkSync(filePath) })
+
   try {
     const winner = await tryDownload()
-
-    const tmp = path.join(process.cwd(), "tmp")
-    if (!fs.existsSync(tmp)) fs.mkdirSync(tmp)
     const file = path.join(tmp, `${Date.now()}_vid.mp4`)
-
     const dl = await axios.get(winner.url, { responseType: "stream", timeout: 0 })
     let totalSize = 0
-    dl.data.on("data", chunk => {
-      totalSize += chunk.length
-      if (totalSize > MAX_FILE_SIZE) dl.data.destroy()
+    await new Promise((resolve, reject) => {
+      const writeStream = fs.createWriteStream(file)
+      dl.data.on("data", chunk => {
+        totalSize += chunk.length
+        if (totalSize > MAX_FILE_SIZE) {
+          dl.data.destroy()
+          if (fs.existsSync(file)) fs.unlinkSync(file)
+          reject(new Error("El archivo excede el límite de 60 MB permitido por WhatsApp."))
+        }
+      })
+      dl.data.on("error", err => reject(err))
+      writeStream.on("finish", resolve)
+      writeStream.on("error", reject)
+      dl.data.pipe(writeStream)
     })
 
-    await streamPipe(dl.data, fs.createWriteStream(file))
-
-    const stats = fs.statSync(file)
-    if (stats.size > MAX_FILE_SIZE) {
-      fs.unlinkSync(file)
-      throw new Error("El archivo excede el límite de 60 MB permitido por WhatsApp.")
-    }
-
-    await conn.sendMessage(
-      msg.key.remoteJid,
-      {
-        video: fs.readFileSync(file),
-        mimetype: "video/mp4",
-        fileName: `${title}.mp4`,
-        caption: `
+    await conn.sendMessage(msg.key.remoteJid, {
+      video: fs.createReadStream(file),
+      mimetype: "video/mp4",
+      fileName: `${title}.mp4`,
+      caption: `
 > 𝚅𝙸𝙳𝙴𝙾 𝙳𝙾𝚆𝙽𝙻𝙾𝙰𝙳𝙴𝚁
 
 ⭒ 🎵 - Título: ${title}
@@ -103,16 +97,13 @@ const handler = async (msg, { conn, text }) => {
 ⭒ 🌐 - API: ${winner.api}
 
 » VIDEO ENVIADO 🎧
-        `.trim(),
-        supportsStreaming: true,
-        contextInfo: { isHd: true }
-      },
-      { quoted: msg }
-    )
+      `.trim(),
+      supportsStreaming: true,
+      contextInfo: { isHd: true }
+    }, { quoted: msg })
 
-    fs.unlinkSync(file)
+    if (fs.existsSync(file)) fs.unlinkSync(file)
     await conn.sendMessage(msg.key.remoteJid, { react: { text: "✅", key: msg.key } })
-
   } catch (e) {
     console.error(e)
     await conn.sendMessage(msg.key.remoteJid, { text: `⚠️ Error al descargar el video:\n\n${e.message}` }, { quoted: msg })
