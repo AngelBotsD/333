@@ -6,7 +6,7 @@ import { promisify } from "util"
 import { pipeline } from "stream"
 
 const streamPipe = promisify(pipeline)
-const MAX_FILE_SIZE = 60 * 1024 * 1024
+const MAX_FILE_SIZE = 60 * 1024 * 1024 // 60MB
 
 const handler = async (msg, { conn, text }) => {
   if (!text || !text.trim()) {
@@ -33,63 +33,35 @@ const handler = async (msg, { conn, text }) => {
 
   const { url: videoUrl, title, timestamp: duration, author } = video
   const artista = author.name
-  const posibles = ["2160p","1440p","1080p","720p","480p","360p","240p","144p"]
 
-  let videoDownloadUrl = null
-  let calidadElegida = "Desconocida"
-  let apiUsada = "Desconocida"
-
-  const tryDownload = async () => {
-    let winner = null
-    let intentos = 0
-
-    while (!winner && intentos < 2) {
-      intentos++
-      try {
-        const tryApi = (apiName, urlBuilder) => new Promise(async (resolve, reject) => {
-          const controller = new AbortController()
-          try {
-            for (const q of posibles) {
-              const apiUrl = urlBuilder(q)
-              const r = await axios.get(apiUrl, { timeout: 15000, signal: controller.signal })
-              if (r.data?.status && (r.data?.result?.url || r.data?.data?.url)) {
-                resolve({
-                  url: r.data.result?.url || r.data.data?.url,
-                  quality: r.data.result?.quality || r.data.data?.quality || q,
-                  api: apiName,
-                  controller
-                })
-                return
-              }
-            }
-            reject(new Error(`${apiName}: No entregó un URL válido`))
-          } catch (err) {
-            if (!err.message.toLowerCase().includes("aborted")) {
-              reject(new Error(`${apiName}: ${err.message}`))
-            }
-          }
+  const tryApi = (name, urlBuilder) => new Promise(async (resolve, reject) => {
+    try {
+      const apiUrl = urlBuilder(videoUrl)
+      const r = await axios.get(apiUrl, { timeout: 15000 })
+      if (r.data?.status && r.data?.result?.url) {
+        resolve({
+          url: r.data.result.url,
+          quality: r.data.result.quality || "Desconocida",
+          api: name
         })
-
-        const mayApi = tryApi("MayAPI", q => `https://mayapi.ooguy.com/ytdl?url=${encodeURIComponent(videoUrl)}&type=mp4&quality=${q}&apikey=may-0595dca2`)
-        const neoxApi = tryApi("NeoxR", q => `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(videoUrl)}&type=video&quality=${q}&apikey=russellxz`)
-        const adonixApi = tryApi("AdonixAPI", q => `https://api-adonix.ultraplus.click/download/ytmp4?apikey=AdonixKeyz11c2f6197&url=${encodeURIComponent(videoUrl)}&quality=${q}`)
-
-        winner = await Promise.any([mayApi, neoxApi, adonixApi])
-        ;[mayApi, neoxApi, adonixApi].forEach(p => { if (p !== winner && p.controller) p.controller.abort() })
-      } catch (e) {
-        if (intentos >= 2) throw new Error("No se pudo obtener el video/audio después de 2 intentos.")
-        // si fallo primer intento, vuelve a intentar automáticamente
+      } else {
+        reject(new Error(`${name}: No entregó URL válido`))
       }
+    } catch (e) {
+      reject(new Error(`${name}: ${e.message}`))
     }
-
-    return winner
-  }
+  })
 
   try {
-    const winner = await tryDownload()
-    videoDownloadUrl = winner.url
-    calidadElegida = winner.quality
-    apiUsada = winner.api
+    const winner = await Promise.any([
+      tryApi("NeoxR", url => `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(url)}&type=video&quality=best&apikey=russellxz`),
+      tryApi("AdonixAPI", url => `https://api-adonix.ultraplus.click/download/ytmp4?apikey=AdonixKeyno3h1z7435&url=${encodeURIComponent(url)}&quality=best`),
+      tryApi("Sylphy", url => `https://api.sylphy.xyz/download/ytmp4?url=${encodeURIComponent(url)}&apikey=sylphy-fbb9`)
+    ])
+
+    const videoDownloadUrl = winner.url
+    const calidadElegida = winner.quality
+    const apiUsada = winner.api
 
     const tmp = path.join(process.cwd(), "tmp")
     if (!fs.existsSync(tmp)) fs.mkdirSync(tmp)
@@ -119,11 +91,11 @@ const handler = async (msg, { conn, text }) => {
         caption: `
 > *𝚅𝙸𝙳𝙴𝙾 𝙳𝙾𝚆𝙽𝙻𝙾𝙰𝙳𝙴𝚁*
 
-⭒ ִֶָ७ ꯭🎵˙⋆｡ - *𝚃𝚒́𝚝𝚞𝚕𝚘:* ${title}
-⭒ ִֶָ७ ꯭🎤˙⋆｡ - *𝙰𝚛𝚝𝚒𝚜𝚝𝚊:* ${artista}
-⭒ ִֶָ७ ꯭🕑˙⋆｡ - *𝙳𝚞𝚛𝚊𝚌𝚒ó𝚗:* ${duration}
-⭒ ִֶָ७ ꯭📺˙⋆｡ - *𝙲𝚊𝚕𝚒𝚍𝚊𝚍:* ${calidadElegida}
-⭒ ִֶָ७ ꯭🌐˙⋆｡ - *𝙰𝚙𝚒:* ${apiUsada}
+⭒ 🎵˙⋆｡ - *𝚃𝚒́𝚝𝚞𝚕𝚘:* ${title}
+⭒ 🎤˙⋆｡ - *𝙰𝚛𝚝𝚒𝚜𝚝𝚊:* ${artista}
+⭒ 🕑˙⋆｡ - *𝙳𝚞𝚛𝚊𝚌𝚒ó𝚗:* ${duration}
+⭒ 📺˙⋆｡ - *𝙲𝚊𝚕𝚒𝚍𝚊𝚍:* ${calidadElegida}
+⭒ 🌐˙⋆｡ - *𝙰𝚙𝚒:* ${apiUsada}
 
 » 𝙑𝙸𝘿𝙴𝙾 𝙀𝙉𝙑𝙸𝘼𝘿𝙊  🎧
 » 𝘿𝙸𝙎𝙁𝙍𝙐𝙏𝘼𝙇𝙊 𝘾𝘼𝙈𝙋𝙀𝙊𝙉..
@@ -139,8 +111,8 @@ const handler = async (msg, { conn, text }) => {
     )
 
     fs.unlinkSync(file)
-
     await conn.sendMessage(msg.key.remoteJid, { react: { text: "✅", key: msg.key } })
+
   } catch (e) {
     console.error(e)
     await conn.sendMessage(
