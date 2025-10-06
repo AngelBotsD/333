@@ -8,8 +8,8 @@ import { pipeline } from "stream";
 
 const streamPipe = promisify(pipeline);
 
-const API_BASE = process.env.API_BASE || "https://api-sky.ultraplus.click";
-const API_KEY  = process.env.API_KEY  || "Russellxz";
+const API_BASE = process.env.API_BASE || "https://api-adonix.ultraplus.click";
+const API_KEY  = process.env.API_KEY  || "AdonixKeyno3h1z7435";
 
 async function downloadToFile(url, filePath) {
   const res = await axios.get(url, { responseType: "stream" });
