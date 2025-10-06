@@ -1,12 +1,6 @@
 import yts from "yt-search"
 import ytdl from "ytdl-core"
-import fs from "fs"
-import path from "path"
-import { pipeline } from "stream"
-import { promisify } from "util"
-
-const streamPipeline = promisify(pipeline)
-const MAX_FILE_SIZE = 60 * 1024 * 1024 // 60 MB WhatsApp limit
+import { PassThrough } from "stream"
 
 const handler = async (msg, { conn, text }) => {
   if (!text || !text.trim()) {
@@ -23,29 +17,19 @@ const handler = async (msg, { conn, text }) => {
   const artista = author.name
 
   try {
-    const tmpDir = path.join(process.cwd(), "tmp")
-    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
-    const filePath = path.join(tmpDir, `${Date.now()}_video.mp4`)
+    // Obtener info para asegurarnos que hay formatos válidos
+    const info = await ytdl.getInfo(videoUrl)
+    const format = ytdl.chooseFormat(info.formats, { quality: "highest", filter: "audioandvideo" })
+    if (!format || !format.url) throw new Error("No se encontró un formato válido para descargar.")
 
-    // Stream de descarga con ytdl
-    const videoStream = ytdl(videoUrl, { quality: "highestvideo", filter: "videoandaudio" })
+    // Stream PassThrough para WhatsApp
+    const stream = new PassThrough()
+    ytdl(videoUrl, { quality: format.itag, filter: "audioandvideo" }).pipe(stream)
 
-    let totalSize = 0
-    videoStream.on("data", chunk => {
-      totalSize += chunk.length
-      if (totalSize > MAX_FILE_SIZE) {
-        videoStream.destroy(new Error("El archivo excede el límite de 60 MB permitido por WhatsApp."))
-      }
-    })
-
-    // Guardar en disco mientras se descarga
-    await streamPipeline(videoStream, fs.createWriteStream(filePath))
-
-    // Enviar a WhatsApp
     await conn.sendMessage(
       msg.key.remoteJid,
       {
-        video: fs.createReadStream(filePath),
+        video: stream,
         mimetype: "video/mp4",
         fileName: `${title}.mp4`,
         caption: `
@@ -54,7 +38,7 @@ const handler = async (msg, { conn, text }) => {
 ⭒ 🎵 - *Título:* ${title}
 ⭒ 🎤 - *Artista:* ${artista}
 ⭒ 🕑 - *Duración:* ${duration}
-⭒ 📺 - *Calidad:* Full HD
+⭒ 📺 - *Calidad:* Full
 ⭒ 🌐 - *Fuente:* YouTube
 
 » Video enviado 🎧
@@ -65,9 +49,7 @@ const handler = async (msg, { conn, text }) => {
       { quoted: msg }
     )
 
-    fs.unlinkSync(filePath) // Borrar archivo temporal
     await conn.sendMessage(msg.key.remoteJid, { react: { text: "✅", key: msg.key } })
-
   } catch (e) {
     console.error(e)
     await conn.sendMessage(msg.key.remoteJid, { text: `⚠️ Error al descargar el video:\n\n${e.message}` }, { quoted: msg })
