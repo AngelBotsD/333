@@ -47,8 +47,8 @@ const handler = async (msg, { conn, text }) => {
           try {
             const apiUrl = urlBuilder()
             const r = await axios.get(apiUrl, { timeout: MAX_TIMEOUT, signal: controller.signal })
-            if (r.data?.status && (r.data?.result?.url || r.data?.data?.url || r.data?.result?.dl_url)) {
-              const url = r.data?.result?.url || r.data?.data?.url || r.data?.result?.dl_url
+            if (r.data?.status && (r.data?.result?.url || r.data?.data?.url)) {
+              const url = r.data?.result?.url || r.data?.data?.url
               const quality = r.data?.result?.quality || r.data?.data?.quality || "Desconocida"
               resolve({ url, quality, api: apiName, controller })
             } else {
@@ -68,35 +68,23 @@ const handler = async (msg, { conn, text }) => {
       })
     }
 
-    // 🔹 Competencia de 6 APIs
-    const sylphyApi = tryApi("Sylphy", () =>
-      `https://api.sylphy.xyz/download/ytmp4?url=${encodeURIComponent(videoUrl)}&apikey=sylphy-fbb9`
-    )
+    // 🔹 Solo Adonix y MayAPI
     const adonixApi = tryApi("Adonix", () =>
       `https://api-adonix.ultraplus.click/download/ytmp4?apikey=AdonixKeyno3h1z7435&url=${encodeURIComponent(videoUrl)}`
     )
     const mayApi = tryApi("MayAPI", () =>
       `https://mayapi.ooguy.com/ytdl?url=${encodeURIComponent(videoUrl)}&type=mp4&apikey=may-0595dca2`
     )
-    const skyApi = tryApi("SkyAPI", () =>
-      `https://api-sky.ultraplus.click/ytdl?url=${encodeURIComponent(videoUrl)}&type=mp4&apikey=Russellxz`
-    )
-    const fgmodsApi = tryApi("FGMODS", () =>
-      `https://api.fgmods.xyz/api/downloader/ytmp4?url=${encodeURIComponent(videoUrl)}&apikey=elrebelde21`
-    )
-    const neoxrApi = tryApi("NeoxR", () =>
-      `https://api.neoxr.eu/api/youtube?url=${encodeURIComponent(videoUrl)}&type=video&quality=720p&apikey=GataDios`
-    )
 
     // 🔹 Promise.any -> gana la primera API que responda correctamente
     let winner
     try {
-      winner = await Promise.any([sylphyApi, adonixApi, mayApi, skyApi, fgmodsApi, neoxrApi])
+      winner = await Promise.any([adonixApi, mayApi])
     } catch (err) {
       throw new Error("No se pudo obtener el video de ninguna API.")
     }
 
-    ;[sylphyApi, adonixApi, mayApi, skyApi, fgmodsApi, neoxrApi].forEach(p => {
+    ;[adonixApi, mayApi].forEach(p => {
       if (p !== winner && p.controller) p.controller.abort()
     })
 
@@ -109,7 +97,6 @@ const handler = async (msg, { conn, text }) => {
     const title = videoInfo.title || "Desconocido"
     const artista = videoInfo.author?.name || "Desconocido"
     const duration = videoInfo.timestamp || "Desconocida"
-    const thumb = videoInfo.thumbnail || null
 
     const tmp = path.join(process.cwd(), "tmp")
     if (!fs.existsSync(tmp)) fs.mkdirSync(tmp)
@@ -150,7 +137,6 @@ const handler = async (msg, { conn, text }) => {
 
 > \`\`\`© Powered by hernandez.xyz\`\`\`
 `.trim(),
-        thumbnail: thumb,
         supportsStreaming: true,
         contextInfo: { isHd: true }
       },
