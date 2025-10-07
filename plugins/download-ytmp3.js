@@ -112,6 +112,5 @@ export const handler = async (msg, { conn, text }) => {
 handler.command  = ["ytmp3","yta"];
 handler.help     = ["ytmp3 <url>", "yta <url>"];
 handler.tags     = ["descargas"];
-handler.register = true;
 
 export default handler;
