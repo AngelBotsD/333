@@ -1,8 +1,9 @@
-// comandos/ytmp3.js — Sky API (solo audio, sin selección)
+// comandos/ytmp3.js — Sky API (solo audio con info coqueta 💅)
 import axios from "axios";
 import fs from "fs";
 import path from "path";
 import ffmpeg from "fluent-ffmpeg";
+import yts from "yt-search";
 
 const API_BASE = process.env.API_BASE || "https://api-sky.ultraplus.click";
 const API_KEY  = process.env.API_KEY  || "Russellxz"; // tu API key
@@ -77,50 +78,60 @@ ${pref}${command} https://youtu.be/dQw4w9WgXcQ`
   try {
     // 1) Llama a tu API (solo audio)
     const d = await getYTFromSkyAudio(text);
-    const title = d.title || "YouTube";
-    const durationTxt = d.duration ? fmtSec(d.duration) : "—";
-    const thumb = d.thumbnail || "";
+    const title = d.title || "Desconocido";
     const audioSrc = String(d.audio);
+    const thumb = d.thumbnail || "";
+    const author = d.author || {};
 
-    // 2) Aviso de descarga
-    const caption =
-`⚡ 𝗬𝗼𝘂𝗧𝘂𝗯𝗲 — 𝗔𝘂𝗱𝗶𝗼
-
-✦ 𝗧𝗶́𝘁𝘂𝗹𝗼: ${title}
-✦ 𝗗𝘂𝗿𝗮𝗰𝗶𝗼́𝗻: ${durationTxt}
-✦ 𝗦𝗼𝘂𝗿𝗰𝗲: api-sky.ultraplus.click
-────────────
-🤖 𝙎𝙪𝙠𝙞 𝘽𝙤𝙩`;
-
-    if (thumb) {
-      await conn.sendMessage(chatId, { image: { url: thumb }, caption }, { quoted: msg });
-    } else {
-      await conn.sendMessage(chatId, { text: caption }, { quoted: msg });
+    // 2) Duración segura (si no viene, buscar con yt-search)
+    let durationTxt = d.duration ? fmtSec(d.duration) : "—";
+    if (durationTxt === "—") {
+      try {
+        const id = text.includes("youtu.be/")
+          ? text.split("youtu.be/")[1].split("?")[0]
+          : new URL(text).searchParams.get("v");
+        const info = await yts({ videoId: id });
+        if (info?.seconds) durationTxt = fmtSec(info.seconds);
+      } catch {}
     }
 
-    await conn.sendMessage(chatId, { text: "🎧 Procesando audio, espera un momento..." }, { quoted: msg });
+    // 3) Info coqueta ✨
+    const infoMsg = 
+`> *𝙰𝚄𝙳𝙸𝙾 𝙳𝙾𝚆𝙽𝙻𝙾𝙰𝙳𝙴𝚁*
 
-    // 3) Transcode → MP3 (128k)
+⭒ ִֶָ७ ꯭🎵˙⋆｡ - *𝚃𝚒́𝚝𝚞𝚕𝚘:* ${title}
+⭒ ִֶָ७ ꯭🎤˙⋆｡ - *𝙰𝚛𝚝𝚒𝚜𝚝𝚊:* ${author?.name || "Desconocido"}
+⭒ ִֶָ७ ꯭🕑˙⋆｡ - *𝙳𝚞𝚛𝚊𝚌𝚒ó𝚗:* ${durationTxt}
+⭒ ִֶָ७ ꯭📺˙⋆｡ - *𝙲𝚊𝚕𝚒𝚍𝚊𝚍:* 128kbps
+⭒ ִֶָ७ ꯭🌐˙⋆｡ - *𝙰𝚙𝚒:* adonix
+
+» *𝘌𝘕𝘝𝘐𝘈𝘕𝘋𝘖 𝘈𝘜𝘋𝘐𝘖* 🎧
+» *𝘈𝘎𝘜𝘈𝘙𝘋𝘌 𝘜𝘕 𝘗𝘖𝘊𝘖*...
+
+⇆‌ ㅤ◁ㅤㅤ❚❚ㅤㅤ▷ㅤ↻
+
+> \`\`\`© 𝖯𝗈𝗐𝖾𝗋𝖾𝗱 𝖻𝗒 angel.𝗑𝗒𝗓\`\`\``;
+
+    // 4) Muestra miniatura o texto
+    if (thumb) {
+      await conn.sendMessage(chatId, { image: { url: thumb }, caption: infoMsg }, { quoted: msg });
+    } else {
+      await conn.sendMessage(chatId, { text: infoMsg }, { quoted: msg });
+    }
+
+    // 5) Transcode → MP3 (128k)
     const filePath = await transcodeToMp3Tmp(audioSrc, `ytmp3-${Date.now()}.mp3`);
     const buf = fs.readFileSync(filePath);
 
-    // 4) Enviar como audio (sin límite)
+    // 6) Enviar audio (sin límite)
     await conn.sendMessage(chatId, {
       audio: buf,
       mimetype: "audio/mpeg",
       fileName: `${title}.mp3`,
-      caption:
-`🎵 𝗬𝗧 𝗠𝗣𝟯 — 𝗟𝗶𝘀𝘁𝗼
-
-✦ 𝗧𝗶́𝘁𝘂𝗹𝗼: ${title}
-✦ 𝗗𝘂𝗿𝗮𝗰𝗶𝗼́𝗻: ${durationTxt}
-✦ 𝗦𝗼𝘂𝗿𝗰𝗲: api-sky.ultraplus.click
-
-🤖 𝙎𝙪𝙠𝙞 𝘽𝙤𝙩`
+      caption: `🎶 *${title}* — descargado con éxito 💫`
     }, { quoted: msg });
 
     try { fs.unlinkSync(filePath); } catch {}
-
     await conn.sendMessage(chatId, { react: { text: "✅", key: msg.key } });
 
   } catch (err) {
